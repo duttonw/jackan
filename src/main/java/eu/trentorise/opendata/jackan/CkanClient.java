@@ -525,6 +525,9 @@ public class CkanClient {
 
             try (InputStreamReader reader = new InputStreamReader(stream, Charsets.UTF_8)) {
                 returnedText = CharStreams.toString(reader);
+                returnedText = returnedText.replace("[\"009:00\"]", "\"009:00\"");
+                returnedText = returnedText.replace("[\"009:020\"]", "\"009:020\"");
+
             }
         } catch (Exception ex) {
             throw new CkanException("Error while performing GET. Request url was: " + fullUrl, this, ex);
