@@ -12,6 +12,6 @@ public class ClientTest {
     public void test() {
         CkanClient ckanClient = new CkanClient("http://catalog.data.gov/");
         CkanDataset dataset = ckanClient.getDataset("02b5e413-d746-43ee-bd52-eac4e33ecb41");
-        System.out.println(dataset.getNotes());
+        System.out.println(dataset.getExtrasAsHashMap().get("identifier"));
     }
 }

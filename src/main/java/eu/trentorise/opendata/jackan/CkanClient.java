@@ -15,74 +15,46 @@
  */
 package eu.trentorise.opendata.jackan;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static eu.trentorise.opendata.commons.TodUtils.removeTrailingSlash;
-import static eu.trentorise.opendata.commons.validation.Preconditions.checkNotEmpty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
+import com.google.common.base.Charsets;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
+import com.google.common.io.CharStreams;
+import eu.trentorise.opendata.commons.TodUtils;
+import eu.trentorise.opendata.jackan.exceptions.*;
+import eu.trentorise.opendata.jackan.model.*;
+import org.apache.http.client.fluent.Request;
+import org.apache.http.client.fluent.Response;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
 
-import java.io.*;
-import java.net.URI;
-import java.net.URISyntaxException;
+import javax.annotation.Nullable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TimeZone;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.annotation.Nullable;
-
-import org.apache.http.HttpHost;
-import org.apache.http.client.fluent.Request;
-import org.apache.http.client.fluent.Response;
-import org.apache.http.client.utils.URIUtils;
-import org.apache.http.entity.ContentType;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.google.common.base.Charsets;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.CharStreams;
-
-import eu.trentorise.opendata.commons.TodUtils;
-import eu.trentorise.opendata.commons.internal.org.apache.commons.lang3.time.FastDateFormat;
-import eu.trentorise.opendata.jackan.exceptions.CkanAuthorizationException;
-import eu.trentorise.opendata.jackan.exceptions.CkanException;
-import eu.trentorise.opendata.jackan.exceptions.CkanNotFoundException;
-import eu.trentorise.opendata.jackan.exceptions.CkanValidationException;
-import eu.trentorise.opendata.jackan.exceptions.JackanException;
-import eu.trentorise.opendata.jackan.model.CkanDataset;
-import eu.trentorise.opendata.jackan.model.CkanDatasetBase;
-import eu.trentorise.opendata.jackan.model.CkanDatasetRelationship;
-import eu.trentorise.opendata.jackan.model.CkanError;
-import eu.trentorise.opendata.jackan.model.CkanGroup;
-import eu.trentorise.opendata.jackan.model.CkanGroupOrgBase;
-import eu.trentorise.opendata.jackan.model.CkanLicense;
-import eu.trentorise.opendata.jackan.model.CkanOrganization;
-import eu.trentorise.opendata.jackan.model.CkanPair;
-import eu.trentorise.opendata.jackan.model.CkanResource;
-import eu.trentorise.opendata.jackan.model.CkanResourceBase;
-import eu.trentorise.opendata.jackan.model.CkanResponse;
-import eu.trentorise.opendata.jackan.model.CkanTag;
-import eu.trentorise.opendata.jackan.model.CkanTagBase;
-import eu.trentorise.opendata.jackan.model.CkanUser;
-import eu.trentorise.opendata.jackan.model.CkanUserBase;
-import eu.trentorise.opendata.jackan.model.CkanVocabulary;
-import eu.trentorise.opendata.jackan.model.CkanVocabularyBase;
-import org.apache.http.entity.mime.MultipartEntityBuilder;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static eu.trentorise.opendata.commons.TodUtils.removeTrailingSlash;
+import static eu.trentorise.opendata.commons.validation.Preconditions.checkNotEmpty;
 
 /**
  * Client to access a ckan instance. Threadsafe.
@@ -486,6 +458,38 @@ public class CkanClient {
         return request;
     }
 
+    private String cleanupIncompatibleJson(String source) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            ObjectNode objectNode = objectMapper.readValue(source, ObjectNode.class);
+            JsonNode extras = objectNode.get("result").get("extras");
+            for (int i = 0; i < extras.size(); i++) {
+                JsonNode jsonNode =extras.get(i);
+                //this is illegal with this client
+                if (jsonNode.get("value").getClass().getSimpleName().equalsIgnoreCase("ArrayNode")) {
+                    ArrayNode value = (ArrayNode)jsonNode.get("value");
+                    String cleanString = "";
+                    for (int j = 0; j < value.size(); j++) {
+                        cleanString += value.get(j).asText();
+
+                        if (j != value.size() - 1) {
+                            cleanString += ",";
+                        }
+                    }
+                    ObjectNode replacementNode = objectMapper.createObjectNode();
+                    replacementNode.set("key", new TextNode(jsonNode.get("key").asText()));
+                    replacementNode.set("value", new TextNode(cleanString));
+                    ((ArrayNode) objectNode.get("result").withArray("extras")).set(i, replacementNode);
+                }
+            }
+            source = objectMapper.writeValueAsString(objectNode);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return source;
+    }
+
     /**
      * Performs HTTP GET on server. If {@link CkanResponse#isSuccess()} is false
      * throws {@link CkanException}.
@@ -525,9 +529,7 @@ public class CkanClient {
 
             try (InputStreamReader reader = new InputStreamReader(stream, Charsets.UTF_8)) {
                 returnedText = CharStreams.toString(reader);
-                returnedText = returnedText.replace("[\"009:00\"]", "\"009:00\"");
-                returnedText = returnedText.replace("[\"009:020\"]", "\"009:020\"");
-
+                returnedText = cleanupIncompatibleJson(returnedText);
             }
         } catch (Exception ex) {
             throw new CkanException("Error while performing GET. Request url was: " + fullUrl, this, ex);
