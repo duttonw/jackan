@@ -17,7 +17,9 @@ package eu.trentorise.opendata.jackan;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -31,6 +33,7 @@ import com.google.common.io.CharStreams;
 import eu.trentorise.opendata.commons.TodUtils;
 import eu.trentorise.opendata.jackan.exceptions.*;
 import eu.trentorise.opendata.jackan.model.*;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.fluent.Request;
 import org.apache.http.client.fluent.Response;
 import org.apache.http.entity.ContentType;
@@ -933,6 +936,60 @@ public class CkanClient {
             cr.setPackageId(cd.getId());
         }
         return cd;
+    }
+
+    public synchronized List<String> getDatasetIdsFromTag(String idOrName) {
+        checkNotNull(idOrName, "Need a valid id or name!");
+        Object[] params = new Object[2];
+        params[0] = "id";
+        params[1] = idOrName;
+        String fullUrl = calcFullUrl("/api/3/action/tag_show", params);
+        String returnedText;
+        List<String> datasetIds = new ArrayList<>();
+        try {
+            Request request = Request.Get(fullUrl);
+
+            configureRequest(request);
+
+            Response response = request.execute();
+
+            InputStream stream = response.returnResponse()
+                    .getEntity()
+                    .getContent();
+
+            try (InputStreamReader reader = new InputStreamReader(stream, Charsets.UTF_8)) {
+                returnedText = CharStreams.toString(reader);
+                datasetIds = generatePackageIdList(returnedText);
+            }
+        } catch (ClientProtocolException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return datasetIds;
+    }
+
+    private List<String> generatePackageIdList(String returnedText) {
+        List<String> idList = new ArrayList<>();
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            ObjectNode objectNode = objectMapper.readValue(returnedText, ObjectNode.class);
+            JsonNode packages = objectNode.get("result").get("packages");
+            for (int i = 0; i < packages.size(); i++) {
+                JsonNode jsonNode = packages.get(i);
+                jsonNode.get("id");
+            }
+
+        } catch (JsonParseException e) {
+            e.printStackTrace();
+        } catch (JsonMappingException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return  idList;
     }
 
     /**
