@@ -18,7 +18,7 @@ public class ClientTest {
         CkanQuery query = CkanQuery.filter().byTagNames("nndss");
         List<CkanDataset> filteredDatasets = ckanClient.searchDatasets(query, 10, 0).getResults();
         for (CkanDataset dataset : filteredDatasets) {
-            System.out.println(dataset.getTitle());
+            System.out.println(dataset.getId());
         }
         //CkanDataset dataset = ckanClient.getDataset("02b5e413-d746-43ee-bd52-eac4e33ecb41");
         //System.out.println(dataset.getExtrasAsHashMap().get("identifier"));
