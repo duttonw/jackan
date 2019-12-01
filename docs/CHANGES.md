@@ -4,6 +4,10 @@ JACKAN #{version} RELEASE NOTES
 
 http://opendatatrentino.github.io/jackan  
 
+### 0.5.x 
+
+File Resources now stored in memory instead of writing to disk before sending
+CkanClient now cleansup Incompatible Json for get requests inside the extras (convert ArrayNode)
 
 ### 0.4.3 todo 
 

@@ -83,9 +83,8 @@ public class CkanDatasetBase {
      * Constructor with the minimal set of attributes required to successfully
      * create a dataset on the server.
      *
-     * @param name
-     *            the dataset name (contains no spaces and has dashes as
-     *            separators, i.e. "limestone-pavement-orders")
+     * @param name the dataset name (contains no spaces and has dashes as
+     * separators, i.e. "limestone-pavement-orders")
      */
     public CkanDatasetBase(String name) {
         this();

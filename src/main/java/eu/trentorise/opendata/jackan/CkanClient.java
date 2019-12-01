@@ -1,5 +1,5 @@
-/* 
- * Copyright 2015 Trento Rise  (trentorise.eu) 
+/*
+ * Copyright 2015 Trento Rise  (trentorise.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -129,9 +129,12 @@ public class CkanClient {
     private static final Logger LOG = Logger.getLogger(CkanClient.class.getName());
 
     private static final String COULDNT_JSONIZE = "Couldn't jsonize the provided ";
-    private static final Map<String, ObjectMapper> OBJECT_MAPPERS_FOR_POSTING = new HashMap();
+
     @Nullable
     private static ObjectMapper objectMapper;
+
+    private static final Map<String, ObjectMapper> OBJECT_MAPPERS_FOR_POSTING = new HashMap();
+
     private String catalogUrl;
 
     @Nullable
@@ -145,35 +148,34 @@ public class CkanClient {
      */
     private int timeout;
 
-    protected CkanClient() {
-        this.timeout = DEFAULT_TIMEOUT;
-        this.catalogUrl = "";
+    @JsonSerialize(as = CkanResourceBase.class)
+    private abstract static class CkanResourceForPosting {
     }
 
-    /**
-     * Creates a Ckan client with null token
-     *
-     * @param catalogUrl the catalog url i.e. http://data.gov.uk. Internally, it will
-     *                   be stored in a normalized format (to avoid i.e. trailing
-     *                   slashes).
-     */
-    public CkanClient(String catalogUrl) {
-        this();
-        checkNotEmpty(catalogUrl, "invalid ckan catalog url");
-        this.catalogUrl = removeTrailingSlash(catalogUrl);
+    @JsonSerialize(as = CkanDatasetBase.class)
+    private abstract static class CkanDatasetForPosting {
     }
 
-    /**
-     * Creates a Ckan client with null token
-     *
-     * @param catalogUrl the catalog url i.e. http://data.gov.uk. Internally, it will
-     *                   be stored in a normalized format (to avoid i.e. trailing
-     *                   slashes).
-     * @param ckanToken  the token used for authorization in ckan api
-     */
-    public CkanClient(String catalogUrl, @Nullable String ckanToken) {
-        this(catalogUrl);
-        this.ckanToken = ckanToken;
+    @JsonSerialize(as = CkanGroupOrgBase.class)
+    private abstract static class CkanGroupOrgForPosting {
+    }
+
+    @JsonSerialize(as = GroupForDatasetPosting.class)
+    abstract static class GroupForDatasetPosting extends CkanGroupOrgBase {
+
+        @JsonIgnore
+        @Override
+        public List<CkanUser> getUsers() {
+            return super.getUsers();
+        }
+    }
+
+    @JsonSerialize(as = CkanUserBase.class)
+    private abstract static class CkanUserForPosting {
+    }
+
+    @JsonSerialize(as = CkanTagBase.class)
+    private abstract static class CkanTagForPosting {
     }
 
     /**
@@ -258,6 +260,45 @@ public class CkanClient {
     }
 
     /**
+     * The timeout expressed in milliseconds. By default it is
+     * {@link #DEFAULT_TIMEOUT}.
+     */
+    public int getTimeout() {
+        return timeout;
+    }
+
+    protected CkanClient() {
+        this.timeout = DEFAULT_TIMEOUT;
+        this.catalogUrl = "";
+    }
+
+    /**
+     * Creates a Ckan client with null token
+     *
+     * @param catalogUrl the catalog url i.e. http://data.gov.uk. Internally, it will
+     *                   be stored in a normalized format (to avoid i.e. trailing
+     *                   slashes).
+     */
+    public CkanClient(String catalogUrl) {
+        this();
+        checkNotEmpty(catalogUrl, "invalid ckan catalog url");
+        this.catalogUrl = removeTrailingSlash(catalogUrl);
+    }
+
+    /**
+     * Creates a Ckan client with null token
+     *
+     * @param catalogUrl the catalog url i.e. http://data.gov.uk. Internally, it will
+     *                   be stored in a normalized format (to avoid i.e. trailing
+     *                   slashes).
+     * @param ckanToken  the token used for authorization in ckan api
+     */
+    public CkanClient(String catalogUrl, @Nullable String ckanToken) {
+        this(catalogUrl);
+        this.ckanToken = ckanToken;
+    }
+
+    /**
      * Returns a new client builder.
      * <p>
      * The builder is not threadsafe and you can use one builder instance to
@@ -265,6 +306,418 @@ public class CkanClient {
      */
     public static CkanClient.Builder builder() {
         return new Builder(new CkanClient());
+    }
+
+    /**
+     * Builder for the client. The builder is not threadsafe and you can use one
+     * builder instance to build only one client instance.
+     *
+     * @author David Leoni
+     */
+    public static class Builder {
+        private CkanClient client;
+        private boolean created;
+
+        protected CkanClient getClient() {
+            return client;
+        }
+
+        protected boolean getCreated() {
+            return created;
+        }
+
+        protected void checkNotCreated() {
+            if (created) {
+                throw new IllegalStateException("Builder was already used to create a client!");
+            }
+        }
+
+        protected Builder(CkanClient client) {
+            checkNotNull(client);
+            this.client = client;
+            this.created = false;
+        }
+
+        /**
+         * Sets the catalog url i.e. http://data.gov.uk.
+         * <p>
+         * Internally, it will be stored in a normalized format (to avoid i.e.
+         * trailing slashes).
+         */
+        public Builder setCatalogUrl(String catalogUrl) {
+            checkNotCreated();
+            checkNotEmpty(catalogUrl, "invalid ckan catalog url");
+            this.client.catalogUrl = removeTrailingSlash(catalogUrl);
+            return this;
+        }
+
+        /**
+         * Sets the private token string for ckan repository
+         */
+        public Builder setCkanToken(@Nullable String ckanToken) {
+            checkNotCreated();
+            this.client.ckanToken = ckanToken;
+            return this;
+        }
+
+        /**
+         * Sets the proxy used to perform GET and POST calls
+         *
+         * @param proxyUri the proxy used by the client, usually in a format with
+         *                 address and port like {@code my.own-proxy.org:1234}
+         */
+        public Builder setProxy(@Nullable String proxyUri) {
+            checkNotCreated();
+
+            if (proxyUri == null) {
+                this.client.proxy = null;
+            } else {
+                this.client.proxy = TodUtils.removeTrailingSlash(proxyUri);
+            }
+
+            return this;
+        }
+
+        /**
+         * Sets the connection timeout expressed as number of milliseconds. Must
+         * be greater than zero, otherwise IllegalArgumentException is thrown.
+         *
+         * @throws IllegalArgumentException is value is less than 1.
+         */
+        public Builder setTimeout(int timeout) {
+            checkNotCreated();
+            checkArgument(timeout > 0, "Timeout must be > 0 ! Found instead %s", timeout);
+            this.client.timeout = timeout;
+            return this;
+        }
+
+        public CkanClient build() {
+            checkNotCreated();
+            checkNotEmpty(this.client.catalogUrl, "Invalid catalog url!");
+            this.created = true;
+            return this.client;
+        }
+    }
+
+    @Override
+    public String toString() {
+        String maskedToken = ckanToken == null ? null : "*****MASKED_TOKEN*******";
+        return "CkanClient{" + "catalogURL=" + catalogUrl + ", ckanToken=" + maskedToken + '}';
+    }
+
+    /**
+     * Calculates a full url out of the provided params
+     *
+     * @param path   something like /api/3/package_show
+     * @param params list of key, value parameters. They must be not be url
+     *               encoded. i.e. "id","laghi-monitorati-trento"
+     * @return the full url to be called.
+     * @throws JackanException if there is any error building the url
+     */
+    private String calcFullUrl(String path, Object[] params) {
+        checkNotNull(path);
+
+        try {
+            StringBuilder sb = new StringBuilder().append(catalogUrl)
+                .append(path);
+            for (int i = 0; i < params.length; i += 2) {
+                sb.append(i == 0 ? "?" : "&")
+                    .append(URLEncoder.encode(params[i].toString(), "UTF-8"))
+                    .append("=")
+                    .append(URLEncoder.encode(params[i + 1].toString(), "UTF-8"));
+            }
+            return sb.toString();
+        } catch (Exception ex) {
+            throw new JackanException("Error while building url to perform GET! \n path: " + path + " \n params: "
+                + Arrays.toString(params), ex);
+        }
+    }
+
+    /**
+     * Configures the request. Should work both for GETs and POSTs.
+     */
+    protected Request configureRequest(Request request) {
+        if (ckanToken != null) {
+            request.addHeader("Authorization", ckanToken);
+        }
+        if (proxy != null) {
+            request.viaProxy(proxy);
+        }
+        request.socketTimeout(this.timeout)
+            .connectTimeout(this.timeout);
+
+        return request;
+    }
+
+    private String cleanupIncompatibleJson(String source) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            ObjectNode objectNode = objectMapper.readValue(source, ObjectNode.class);
+            List<JsonNode> extrasList = objectNode.findValues("extras");
+            for (int k = 0; k < extrasList.size(); k++) {
+                for (int i = 0; i < extrasList.get(k).size(); i++) {
+                    JsonNode jsonNode = extrasList.get(k).get(i);
+                    //this is illegal with this client
+                    if (jsonNode.get("value").getClass().getSimpleName().equalsIgnoreCase("ArrayNode")) {
+                        ArrayNode value = (ArrayNode) jsonNode.get("value");
+                        String cleanString = "";
+                        for (int j = 0; j < value.size(); j++) {
+                            cleanString += value.get(j).asText();
+
+                            if (j != value.size() - 1) {
+                                cleanString += ",";
+                            }
+                        }
+                        ObjectNode replacementNode = objectMapper.createObjectNode();
+                        replacementNode.set("key", new TextNode(jsonNode.get("key").asText()));
+                        replacementNode.set("value", new TextNode(cleanString));
+                        ((ArrayNode) extrasList.get(k)).set(i, replacementNode);
+                    }
+                }
+
+            }
+            source = objectMapper.writeValueAsString(objectNode);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return source;
+    }
+
+    /**
+     * Performs HTTP GET on server. If {@link CkanResponse#isSuccess()} is false
+     * throws {@link CkanException}.
+     *
+     * @param <T>
+     * @param responseType a descendant of CkanResponse
+     * @param path         something like /api/3/package_show
+     * @param params       list of key, value parameters. They must be not be url
+     *                     encoded. i.e. "id","laghi-monitorati-trento"
+     * @throws CkanException on error
+     */
+    private <T extends CkanResponse> T getHttp(Class<T> responseType, String path, Object... params) {
+
+        checkNotNull(responseType);
+        checkNotNull(path);
+
+        String fullUrl = calcFullUrl(path, params);
+
+        T ckanResponse;
+        String returnedText;
+
+        try {
+            LOG.log(Level.FINE, "getting {0}", fullUrl);
+            Request request = Request.Get(fullUrl);
+
+            configureRequest(request);
+
+            Response response = request.execute();
+
+            InputStream stream = response.returnResponse()
+                .getEntity()
+                .getContent();
+
+            try (InputStreamReader reader = new InputStreamReader(stream, Charsets.UTF_8)) {
+                returnedText = CharStreams.toString(reader);
+                returnedText = cleanupIncompatibleJson(returnedText);
+            }
+        } catch (Exception ex) {
+            throw new CkanException("Error while performing GET. Request url was: " + fullUrl, this, ex);
+        }
+        try {
+            ckanResponse = getObjectMapper().readValue(returnedText, responseType);
+        } catch (Exception ex) {
+            throw new CkanException(
+                "Couldn't interpret json returned by the server! Returned text was: " + returnedText, this, ex);
+        }
+
+        if (!ckanResponse.isSuccess()) {
+            throwCkanException("Error while performing GET. Request url was: " + fullUrl, ckanResponse);
+        }
+        return ckanResponse;
+    }
+
+    /**
+     * Throws {@link CkanException} or a subclass of it according to
+     * {@link CkanError#getType()}
+     *
+     * @throws CkanException
+     * @since 0.4.1
+     */
+    protected <T extends CkanResponse> void throwCkanException(String msg, T ckanResponse) {
+        if (ckanResponse.getError() != null && ckanResponse.getError()
+            .getType() != null) {
+            switch (ckanResponse.getError()
+                .getType()) {
+                case CkanError.NOT_FOUND_ERROR:
+                    throw new CkanNotFoundException(msg, ckanResponse, this);
+                case CkanError.VALIDATION_ERROR:
+                    throw new CkanValidationException(msg, ckanResponse, this);
+                case CkanError.AUTHORIZATION_ERROR:
+                    throw new CkanAuthorizationException(msg, ckanResponse, this);
+            }
+
+        }
+
+        throw new CkanException(msg, ckanResponse, this);
+    }
+
+    /**
+     * POSTs a body via HTTP. If {@link CkanResponse#isSuccess()} is false
+     * throws {@link CkanException}.
+     *
+     * @param responseType a descendant of CkanResponse
+     * @param path         something like /api/3/action/package_create
+     * @param body         the body of the POST
+     * @param contentType
+     * @param params       list of key, value parameters. They must be not be url
+     *                     encoded. i.e. "id","laghi-monitorati-trento"
+     * @throws CkanException on error
+     */
+    private <T extends CkanResponse> T postHttp(Class<T> responseType, String path, String body,
+                                                ContentType contentType, Object... params) {
+        checkNotNull(responseType);
+        checkNotNull(path);
+        checkNotNull(body);
+        checkNotNull(contentType);
+
+        String fullUrl = calcFullUrl(path, params);
+
+        T ckanResponse;
+        String returnedText;
+
+        try {
+            LOG.log(Level.FINE, "Posting to url {0}", fullUrl);
+            LOG.log(Level.FINE, "Sending body:{0}", body);
+            Request request = Request.Post(fullUrl);
+
+            configureRequest(request);
+
+            Response response = request.bodyString(body, contentType)
+                .execute();
+
+            InputStream stream = response.returnResponse()
+                .getEntity()
+                .getContent();
+
+            try (InputStreamReader reader = new InputStreamReader(stream, Charsets.UTF_8)) {
+                returnedText = CharStreams.toString(reader);
+            }
+        } catch (Exception ex) {
+            throw new CkanException("Error while performing a POST! Request url is:" + fullUrl, this, ex);
+        }
+
+        try {
+            ckanResponse = getObjectMapper().readValue(returnedText, responseType);
+        } catch (Exception ex) {
+            throw new CkanException(
+                "Couldn't interpret json returned by the server! Returned text was: " + returnedText, this, ex);
+        }
+
+        if (!ckanResponse.isSuccess()) {
+            throwCkanException("Error while performing a POST! Request url is:" + fullUrl, ckanResponse);
+        }
+        return ckanResponse;
+
+    }
+
+    /**
+     * Update the data associated to the given resource.
+     *
+     * @param responseType a descendant of CkanResponse
+     * @param path         something like /api/3/action/package_create
+     * @param resource     a {@link CkanResourceBase} object with a data file set in the
+     *                     {@link CkanResourceBase#upload} field
+     * @throws CkanException
+     */
+    private <T extends CkanResponse> T postHttpResourceFile(Class<T> responseType, String path,
+                                                            CkanResourceBase resource) {
+        checkNotNull(responseType);
+        checkNotNull(path);
+        checkNotNull(resource);
+        checkNotNull(resource.getUploadByte());
+        checkNotNull(resource.getPackageId());
+
+        String fullUrl = calcFullUrl(path, new Object[] {});
+
+        T ckanResponse;
+        String returnedText;
+
+        try {
+            LOG.log(Level.FINE, "Posting to url {0}", fullUrl);
+            Request request = Request.Post(fullUrl);
+
+            configureRequest(request);
+
+            MultipartEntityBuilder entityBuilder = MultipartEntityBuilder.create()
+                .addBinaryBody("upload", resource.getUpload(),
+                    ContentType.create(
+                        "application/octet-stream",
+                        Charset.forName("UTF-8")),
+                    resource.getName())
+                .addTextBody("size", resource.getSize(),
+                    ContentType.TEXT_PLAIN)
+                .addTextBody("id", resource.getId(),
+                    ContentType.TEXT_PLAIN)
+                .addTextBody("url", "upload",
+                    ContentType.TEXT_PLAIN)
+                .addTextBody("package_id",
+                    resource.getPackageId(),
+                    ContentType.TEXT_PLAIN);
+
+            if (resource.getFormat() != null) {
+                entityBuilder.addTextBody("format", resource.getFormat(), ContentType.TEXT_PLAIN);
+            }
+            if (resource.getMimetype() != null) {
+                entityBuilder.addTextBody("mimetype", resource.getMimetype(), ContentType.TEXT_PLAIN);
+            }
+            if (resource.getLastModified() != null) {
+                entityBuilder.addTextBody("last_modified", resource.getLastModified(), ContentType.TEXT_PLAIN);
+            }
+
+            entityBuilder.setCharset(Charset.forName("UTF-8"));
+
+            Response response = request.body(entityBuilder.build())
+                .execute();
+
+            InputStream stream = response.returnResponse()
+                .getEntity()
+                .getContent();
+
+            try (InputStreamReader reader = new InputStreamReader(stream, Charsets.UTF_8)) {
+                returnedText = CharStreams.toString(reader);
+            }
+        } catch (Exception ex) {
+            throw new CkanException("Error while performing a POST! Request url is:" + fullUrl, this, ex);
+        }
+
+        try {
+            ckanResponse = getObjectMapper().readValue(returnedText, responseType);
+        } catch (Exception ex) {
+            throw new CkanException(
+                "Couldn't interpret json returned by the server! Returned text was: " + returnedText, this, ex);
+        }
+
+        if (!ckanResponse.isSuccess()) {
+            throwCkanException("Error while performing a POST! Request url is:" + fullUrl, ckanResponse);
+        }
+        return ckanResponse;
+
+    }
+
+    /**
+     * Returns the catalog URL (normalized).
+     */
+    public String getCatalogUrl() {
+        return catalogUrl;
+    }
+
+    /**
+     * Returns the private CKAN token.
+     */
+    public String getCkanToken() {
+        return ckanToken;
     }
 
     private static void checkCatalogUrl(String catalogUrl) {
@@ -355,490 +808,6 @@ public class CkanClient {
     }
 
     /**
-     * @param fqPrefix either "" or " AND "
-     * @param list     list of names of ckan objects
-     */
-    private static String appendNamesList(String fqPrefix, String key, List<String> list, StringBuilder fq) {
-        checkNotNull(fqPrefix, "Need a valid prefix!");
-        checkNotNull(key, "Need a valid key!");
-        checkNotNull(list, "Need a valid list!");
-        checkNotNull(fq, "Need a valid string builder!");
-
-        if (list.size() > 0) {
-            fq.append(fqPrefix)
-                    .append("(");
-            String prefix = "";
-            for (String n : list) {
-                fq.append(prefix)
-                        .append(key)
-                        .append(":");
-                fq.append('"' + n + '"');
-                prefix = " AND ";
-            }
-            fq.append(")");
-            return " AND ";
-        } else {
-            return "";
-        }
-
-    }
-
-    /**
-     * Parses a {@link #CKAN_TIMESTAMP_PATTERN Ckan timestamp} into a Java Timestamp.
-     * For resilience, it also accepts patterns without fractional part and with
-     * only millisecs.
-     *
-     * @throws IllegalArgumentException if timestamp can't be parsed.
-     * @see #formatTimestamp(java.sql.Timestamp) for the inverse process.
-     * @since 0.4.1
-     */
-    // NOTE:
-    // - Timestamp.valueOf can't be used as it is locale timezone dependent...
-    // - new Timestamp(long) internally stores time without millisecs, and millisecs go to nano part
-    public static Timestamp parseTimestamp(String timestamp) {
-        if (timestamp == null) {
-            throw new IllegalArgumentException("Found null timestamp!");
-        }
-
-        if (NONE.equals(timestamp)) {
-            throw new IllegalArgumentException("Found timestamp with 'None' inside!");
-        }
-
-        String[] tokens = timestamp.split("\\.");
-        String withoutFractional;
-
-        int nanoSecs;
-
-        if (tokens.length == 2) {
-            withoutFractional = tokens[0];
-
-            int factor;
-            if (tokens[1].length() == 6) {
-                factor = 1000;
-            } else if (tokens[1].length() == 3) {
-                factor = 1000000;
-            } else {
-                throw new IllegalArgumentException("Couldn0t parse timestamp:" + timestamp
-                        + "  ! unsupported fractional length: " + tokens[1].length());
-            }
-            try {
-                nanoSecs = Integer.parseInt(tokens[1]) * factor;
-
-            } catch (NumberFormatException ex) {
-                throw new IllegalArgumentException("Couldn0t parse timestamp:" + timestamp
-                        + "  ! invalid fractional part:" + tokens[1]);
-            }
-
-        } else if (tokens.length == 1) {
-            withoutFractional = timestamp;
-            nanoSecs = 0;
-        } else {
-            throw new IllegalArgumentException("Error while parsing timestamp:" + timestamp);
-        }
-
-        try {
-            DateFormat formatter = new SimpleDateFormat(CKAN_NO_MILLISECS_PATTERN);
-            formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
-            long time = formatter.parse(withoutFractional).getTime();
-            Timestamp ret = new Timestamp(time);
-            ret.setNanos(nanoSecs);
-            return ret;
-
-        } catch (ParseException ex) {
-            throw new IllegalArgumentException("Error while parsing timestamp:" + timestamp, ex);
-        }
-
-    }
-
-    /**
-     * Formats a timestamp according to {@link #CKAN_TIMESTAMP_PATTERN}, with
-     * precision up to microseconds.
-     *
-     * @throws IllegalArgumentException if timestamp can't be parsed.
-     * @see #parseTimestamp(java.lang.String) for the inverse process.
-     * @since 0.4.1
-     */
-    // NOTE: Timestamp.toString can't be used as it is locale timezone dependent...
-    public static String formatTimestamp(Timestamp timestamp) {
-
-        if (timestamp == null) {
-            throw new IllegalArgumentException("Found null timestamp!");
-        }
-        DateFormat formatter = new SimpleDateFormat(CKAN_NO_MILLISECS_PATTERN);
-        formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
-        String withoutFractional = formatter.format(timestamp);
-
-        int micros = timestamp.getNanos() / 1000;
-        String microsString = Strings.padStart(Integer.toString(micros), 6, '0');
-
-        return withoutFractional + "." + microsString;
-
-    }
-
-    /**
-     * @params s a string to encode in a format suitable for URLs.
-     */
-    private static String urlEncode(String s) {
-        try {
-            return URLEncoder.encode(s, "UTF-8")
-                    .replaceAll("\\+", "%20");
-        } catch (UnsupportedEncodingException ex) {
-            throw new JackanException("Unsupported encoding", ex);
-        }
-    }
-
-    public static List<CkanPair> extrasMapToList(Map<String, String> map) {
-        ArrayList ret = new ArrayList();
-
-        for (String key : map.keySet()) {
-            ret.add(new CkanPair(key, map.get(key)));
-        }
-        return ret;
-    }
-
-    /**
-     * Convenience method to create a Builder with provided client to modify.
-     * <p>
-     * <strong>WARNING:</strong> The passed client will be modified, so
-     * <strong> DO NOT </strong> pass an already built client.
-     * </p>
-     * <p>
-     * The builder is not threadsafe and you can use one builder instance to
-     * build only one client instance.
-     * </p>
-     */
-    protected static CkanClient.Builder newBuilder(CkanClient client) {
-        return new Builder(client);
-    }
-
-    /**
-     * The timeout expressed in milliseconds. By default it is
-     * {@link #DEFAULT_TIMEOUT}.
-     */
-    public int getTimeout() {
-        return timeout;
-    }
-
-    @Override
-    public String toString() {
-        String maskedToken = ckanToken == null ? null : "*****MASKED_TOKEN*******";
-        return "CkanClient{" + "catalogURL=" + catalogUrl + ", ckanToken=" + maskedToken + '}';
-    }
-
-    /**
-     * Calculates a full url out of the provided params
-     *
-     * @param path   something like /api/3/package_show
-     * @param params list of key, value parameters. They must be not be url
-     *               encoded. i.e. "id","laghi-monitorati-trento"
-     * @return the full url to be called.
-     * @throws JackanException if there is any error building the url
-     */
-    private String calcFullUrl(String path, Object[] params) {
-        checkNotNull(path);
-
-        try {
-            StringBuilder sb = new StringBuilder().append(catalogUrl)
-                    .append(path);
-            for (int i = 0; i < params.length; i += 2) {
-                sb.append(i == 0 ? "?" : "&")
-                        .append(URLEncoder.encode(params[i].toString(), "UTF-8"))
-                        .append("=")
-                        .append(URLEncoder.encode(params[i + 1].toString(), "UTF-8"));
-            }
-            return sb.toString();
-        } catch (Exception ex) {
-            throw new JackanException("Error while building url to perform GET! \n path: " + path + " \n params: "
-                    + Arrays.toString(params), ex);
-        }
-    }
-
-    /**
-     * Configures the request. Should work both for GETs and POSTs.
-     */
-    protected Request configureRequest(Request request) {
-        if (ckanToken != null) {
-            request.addHeader("Authorization", ckanToken);
-        }
-        if (proxy != null) {
-            request.viaProxy(proxy);
-        }
-        request.socketTimeout(this.timeout)
-                .connectTimeout(this.timeout);
-
-        return request;
-    }
-
-    private String cleanupIncompatibleJson(String source) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        try {
-            ObjectNode objectNode = objectMapper.readValue(source, ObjectNode.class);
-            List<JsonNode> extrasList = objectNode.findValues("extras");
-            for (int k = 0; k < extrasList.size(); k++) {
-                for (int i = 0; i < extrasList.get(k).size(); i++) {
-                    JsonNode jsonNode = extrasList.get(k).get(i);
-                    //this is illegal with this client
-                    if (jsonNode.get("value").getClass().getSimpleName().equalsIgnoreCase("ArrayNode")) {
-                        ArrayNode value = (ArrayNode) jsonNode.get("value");
-                        String cleanString = "";
-                        for (int j = 0; j < value.size(); j++) {
-                            cleanString += value.get(j).asText();
-
-                            if (j != value.size() - 1) {
-                                cleanString += ",";
-                            }
-                        }
-                        ObjectNode replacementNode = objectMapper.createObjectNode();
-                        replacementNode.set("key", new TextNode(jsonNode.get("key").asText()));
-                        replacementNode.set("value", new TextNode(cleanString));
-                        ((ArrayNode) extrasList.get(k)).set(i, replacementNode);
-                    }
-                }
-
-            }
-            source = objectMapper.writeValueAsString(objectNode);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return source;
-    }
-
-    /**
-     * Performs HTTP GET on server. If {@link CkanResponse#isSuccess()} is false
-     * throws {@link CkanException}.
-     *
-     * @param <T>
-     * @param responseType a descendant of CkanResponse
-     * @param path         something like /api/3/package_show
-     * @param params       list of key, value parameters. They must be not be url
-     *                     encoded. i.e. "id","laghi-monitorati-trento"
-     * @throws CkanException on error
-     */
-    private <T extends CkanResponse> T getHttp(Class<T> responseType, String path, Object... params) {
-
-        checkNotNull(responseType);
-        checkNotNull(path);
-
-        String fullUrl = calcFullUrl(path, params);
-
-        T ckanResponse;
-        String returnedText;
-
-        try {
-            LOG.log(Level.FINE, "getting {0}", fullUrl);
-            Request request = Request.Get(fullUrl);
-
-            configureRequest(request);
-
-            Response response = request.execute();
-
-            InputStream stream = response.returnResponse()
-                    .getEntity()
-                    .getContent();
-
-            try (InputStreamReader reader = new InputStreamReader(stream, Charsets.UTF_8)) {
-                returnedText = CharStreams.toString(reader);
-                returnedText = cleanupIncompatibleJson(returnedText);
-            }
-        } catch (Exception ex) {
-            throw new CkanException("Error while performing GET. Request url was: " + fullUrl, this, ex);
-        }
-        try {
-            ckanResponse = getObjectMapper().readValue(returnedText, responseType);
-        } catch (Exception ex) {
-            throw new CkanException(
-                    "Couldn't interpret json returned by the server! Returned text was: " + returnedText, this, ex);
-        }
-
-        if (!ckanResponse.isSuccess()) {
-            throwCkanException("Error while performing GET. Request url was: " + fullUrl, ckanResponse);
-        }
-        return ckanResponse;
-    }
-
-    /**
-     * Throws {@link CkanException} or a subclass of it according to
-     * {@link CkanError#getType()}
-     *
-     * @throws CkanException
-     * @since 0.4.1
-     */
-    protected <T extends CkanResponse> void throwCkanException(String msg, T ckanResponse) {
-        if (ckanResponse.getError() != null && ckanResponse.getError()
-                .getType() != null) {
-            switch (ckanResponse.getError()
-                    .getType()) {
-                case CkanError.NOT_FOUND_ERROR:
-                    throw new CkanNotFoundException(msg, ckanResponse, this);
-                case CkanError.VALIDATION_ERROR:
-                    throw new CkanValidationException(msg, ckanResponse, this);
-                case CkanError.AUTHORIZATION_ERROR:
-                    throw new CkanAuthorizationException(msg, ckanResponse, this);
-            }
-
-        }
-
-        throw new CkanException(msg, ckanResponse, this);
-    }
-
-    /**
-     * POSTs a body via HTTP. If {@link CkanResponse#isSuccess()} is false
-     * throws {@link CkanException}.
-     *
-     * @param responseType a descendant of CkanResponse
-     * @param path         something like /api/3/action/package_create
-     * @param body         the body of the POST
-     * @param contentType
-     * @param params       list of key, value parameters. They must be not be url
-     *                     encoded. i.e. "id","laghi-monitorati-trento"
-     * @throws CkanException on error
-     */
-    private <T extends CkanResponse> T postHttp(Class<T> responseType, String path, String body,
-                                                ContentType contentType, Object... params) {
-        checkNotNull(responseType);
-        checkNotNull(path);
-        checkNotNull(body);
-        checkNotNull(contentType);
-
-        String fullUrl = calcFullUrl(path, params);
-
-        T ckanResponse;
-        String returnedText;
-
-        try {
-            LOG.log(Level.FINE, "Posting to url {0}", fullUrl);
-            LOG.log(Level.FINE, "Sending body:{0}", body);
-            Request request = Request.Post(fullUrl);
-
-            configureRequest(request);
-
-            Response response = request.bodyString(body, contentType)
-                    .execute();
-
-            InputStream stream = response.returnResponse()
-                    .getEntity()
-                    .getContent();
-
-            try (InputStreamReader reader = new InputStreamReader(stream, Charsets.UTF_8)) {
-                returnedText = CharStreams.toString(reader);
-            }
-        } catch (Exception ex) {
-            throw new CkanException("Error while performing a POST! Request url is:" + fullUrl, this, ex);
-        }
-
-        try {
-            ckanResponse = getObjectMapper().readValue(returnedText, responseType);
-        } catch (Exception ex) {
-            throw new CkanException(
-                    "Couldn't interpret json returned by the server! Returned text was: " + returnedText, this, ex);
-        }
-
-        if (!ckanResponse.isSuccess()) {
-            throwCkanException("Error while performing a POST! Request url is:" + fullUrl, ckanResponse);
-        }
-        return ckanResponse;
-
-    }
-
-    /**
-     * Update the data associated to the given resource.
-     *
-     * @param responseType a descendant of CkanResponse
-     * @param path         something like /api/3/action/package_create
-     * @param resource     a {@link CkanResourceBase} object with a data file set in the
-     *                     {@link CkanResourceBase#upload} field
-     * @throws CkanException
-     */
-    private <T extends CkanResponse> T postHttpResourceFile(Class<T> responseType, String path,
-                                                            CkanResourceBase resource) {
-        checkNotNull(responseType);
-        checkNotNull(path);
-        checkNotNull(resource);
-        checkNotNull(resource.getUploadByte());
-        checkNotNull(resource.getPackageId());
-
-        String fullUrl = calcFullUrl(path, new Object[]{});
-
-        T ckanResponse;
-        String returnedText;
-
-        try {
-            LOG.log(Level.FINE, "Posting to url {0}", fullUrl);
-            Request request = Request.Post(fullUrl);
-
-            configureRequest(request);
-
-            MultipartEntityBuilder entityBuilder = MultipartEntityBuilder.create()
-                    .addBinaryBody("upload", resource.getUpload(),
-                            ContentType.create(
-                                    "application/octet-stream",
-                                    Charset.forName("UTF-8")),
-                            resource.getUpload()
-                                    .getName())
-                    .addTextBody("size", resource.getSize(),
-                            ContentType.TEXT_PLAIN)
-                    .addTextBody("id", resource.getId(),
-                            ContentType.TEXT_PLAIN)
-                    .addTextBody("url", "upload",
-                            ContentType.TEXT_PLAIN)
-                    .addTextBody("package_id",
-                            resource.getPackageId(),
-                            ContentType.TEXT_PLAIN);
-
-            if (resource.getFormat() != null)
-                entityBuilder.addTextBody("format", resource.getFormat(), ContentType.TEXT_PLAIN);
-            if (resource.getMimetype() != null)
-                entityBuilder.addTextBody("mimetype", resource.getMimetype(), ContentType.TEXT_PLAIN);
-            if (resource.getLastModified() != null)
-                entityBuilder.addTextBody("last_modified", resource.getLastModified(), ContentType.TEXT_PLAIN);
-
-            entityBuilder.setCharset(Charset.forName("UTF-8"));
-
-            Response response = request.body(entityBuilder.build())
-                    .execute();
-
-            InputStream stream = response.returnResponse()
-                    .getEntity()
-                    .getContent();
-
-            try (InputStreamReader reader = new InputStreamReader(stream, Charsets.UTF_8)) {
-                returnedText = CharStreams.toString(reader);
-            }
-        } catch (Exception ex) {
-            throw new CkanException("Error while performing a POST! Request url is:" + fullUrl, this, ex);
-        }
-
-        try {
-            ckanResponse = getObjectMapper().readValue(returnedText, responseType);
-        } catch (Exception ex) {
-            throw new CkanException(
-                    "Couldn't interpret json returned by the server! Returned text was: " + returnedText, this, ex);
-        }
-
-        if (!ckanResponse.isSuccess()) {
-            throwCkanException("Error while performing a POST! Request url is:" + fullUrl, ckanResponse);
-        }
-        return ckanResponse;
-
-    }
-
-    /**
-     * Returns the catalog URL (normalized).
-     */
-    public String getCatalogUrl() {
-        return catalogUrl;
-    }
-
-    /**
-     * Returns the private CKAN token.
-     */
-    public String getCkanToken() {
-        return ckanToken;
-    }
-
-    /**
      * Returns list of dataset names like i.e. limestone-pavement-orders
      *
      * @throws JackanException on error
@@ -856,7 +825,7 @@ public class CkanClient {
      */
     public synchronized List<String> getDatasetList(int limit, int offset) {
         return getHttp(DatasetListResponse.class, "/api/3/action/package_list", "limit", limit, "offset",
-                offset).result;
+            offset).result;
     }
 
     /**
@@ -895,8 +864,8 @@ public class CkanClient {
             Request request = Request.Get(fullUrl);
             configureRequest(request);
             String json = request.execute()
-                    .returnContent()
-                    .asString();
+                .returnContent()
+                .asString();
 
             return getObjectMapper().readValue(json, ApiVersionResponse.class).version;
         } catch (Exception ex) {
@@ -964,8 +933,8 @@ public class CkanClient {
             json = om.writeValueAsString(user);
         } catch (IOException e) {
             throw new CkanException(COULDNT_JSONIZE + user.getClass()
-                    .getSimpleName(),
-                    this, e);
+                .getSimpleName(),
+                this, e);
 
         }
 
@@ -1004,14 +973,14 @@ public class CkanClient {
             json = om.writeValueAsString(resource);
         } catch (IOException e) {
             throw new CkanException(COULDNT_JSONIZE + resource.getClass()
-                    .getSimpleName(),
-                    this, e);
+                .getSimpleName(),
+                this, e);
 
         }
 
         if (resource.getUpload() == null) {
             return postHttp(ResourceResponse.class, "/api/3/action/resource_create", json,
-                    ContentType.APPLICATION_JSON).result;
+                ContentType.APPLICATION_JSON).result;
         } else {
             // Could not find a way to create a resource with an attached file
             // without enumerating all the resource
@@ -1019,7 +988,7 @@ public class CkanClient {
             // First, create the resource as usual
             // Then, update it with the file
             CkanResource resourceResponse = postHttp(ResourceResponse.class, "/api/3/action/resource_create", json,
-                    ContentType.APPLICATION_JSON).result;
+                ContentType.APPLICATION_JSON).result;
             resource.setId(resourceResponse.getId());
             return postHttpResourceFile(ResourceResponse.class, "/api/3/action/resource_update", resource).result;
         }
@@ -1044,13 +1013,13 @@ public class CkanClient {
             json = getObjectMapperForPosting(CkanResourceBase.class).writeValueAsString(resource);
         } catch (IOException ex) {
             throw new CkanException(COULDNT_JSONIZE + resource.getClass()
-                    .getSimpleName(),
-                    this, ex);
+                .getSimpleName(),
+                this, ex);
 
         }
 
         return postHttp(ResourceResponse.class, "/api/3/action/resource_update", json,
-                ContentType.APPLICATION_JSON).result;
+            ContentType.APPLICATION_JSON).result;
 
     }
 
@@ -1090,13 +1059,13 @@ public class CkanClient {
             json = getObjectMapperForPosting(CkanResourceBase.class).writeValueAsString(resource);
         } catch (IOException ex) {
             throw new CkanException(COULDNT_JSONIZE + resource.getClass()
-                    .getSimpleName(),
-                    this, ex);
+                .getSimpleName(),
+                this, ex);
 
         }
 
         return postHttp(ResourceResponse.class, "/api/3/action/resource_update", json,
-                ContentType.APPLICATION_JSON).result;
+            ContentType.APPLICATION_JSON).result;
 
     }
 
@@ -1171,7 +1140,7 @@ public class CkanClient {
     public synchronized CkanGroup getGroup(String idOrName) {
         checkNotNull(idOrName, "Need a valid id or name!");
         return getHttp(GroupResponse.class, "/api/3/action/group_show", "id", idOrName, "include_datasets",
-                "false").result;
+            "false").result;
     }
 
     /**
@@ -1213,7 +1182,7 @@ public class CkanClient {
     public synchronized CkanOrganization getOrganization(String idOrName) {
         checkNotNull(idOrName, "Need a valid id or name!");
         return getHttp(OrganizationResponse.class, "/api/3/action/organization_show", "id", idOrName,
-                "include_datasets", "false").result;
+            "include_datasets", "false").result;
     }
 
     /**
@@ -1233,12 +1202,12 @@ public class CkanClient {
             json = getObjectMapperForPosting(CkanTagBase.class).writeValueAsString(tag);
         } catch (IOException e) {
             throw new CkanException(COULDNT_JSONIZE + tag.getClass()
-                    .getSimpleName(),
-                    this, e);
+                .getSimpleName(),
+                this, e);
 
         }
         TagResponse response = postHttp(TagResponse.class, "/api/3/action/tag_create", json,
-                ContentType.APPLICATION_JSON);
+            ContentType.APPLICATION_JSON);
         return response.result;
     }
 
@@ -1288,12 +1257,12 @@ public class CkanClient {
             json = getObjectMapperForPosting(CkanVocabularyBase.class).writeValueAsString(vocabulary);
         } catch (IOException e) {
             throw new CkanException(COULDNT_JSONIZE + vocabulary.getClass()
-                    .getSimpleName(),
-                    this, e);
+                .getSimpleName(),
+                this, e);
 
         }
         VocabularyResponse response = postHttp(VocabularyResponse.class, "/api/3/action/vocabulary_create", json,
-                ContentType.APPLICATION_JSON);
+            ContentType.APPLICATION_JSON);
         return response.result;
     }
 
@@ -1309,8 +1278,141 @@ public class CkanClient {
      */
     public synchronized SearchResults<CkanDataset> searchDatasets(String text, int limit, int offset) {
         return searchDatasets(CkanQuery.filter()
-                        .byText(text),
-                limit, offset);
+                .byText(text),
+            limit, offset);
+    }
+
+    /**
+     * @param fqPrefix either "" or " AND "
+     * @param list     list of names of ckan objects
+     */
+    private static String appendNamesList(String fqPrefix, String key, List<String> list, StringBuilder fq) {
+        checkNotNull(fqPrefix, "Need a valid prefix!");
+        checkNotNull(key, "Need a valid key!");
+        checkNotNull(list, "Need a valid list!");
+        checkNotNull(fq, "Need a valid string builder!");
+
+        if (list.size() > 0) {
+            fq.append(fqPrefix)
+                .append("(");
+            String prefix = "";
+            for (String n : list) {
+                fq.append(prefix)
+                    .append(key)
+                    .append(":");
+                fq.append('"' + n + '"');
+                prefix = " AND ";
+            }
+            fq.append(")");
+            return " AND ";
+        } else {
+            return "";
+        }
+
+    }
+
+    /**
+     * Parses a {@link #CKAN_TIMESTAMP_PATTERN Ckan timestamp} into a Java Timestamp.
+     * For resilience, it also accepts patterns without fractional part and with
+     * only millisecs.
+     *
+     * @throws IllegalArgumentException if timestamp can't be parsed.
+     * @see #formatTimestamp(java.sql.Timestamp) for the inverse process.
+     * @since 0.4.1
+     */
+    // NOTE:
+    // - Timestamp.valueOf can't be used as it is locale timezone dependent...
+    // - new Timestamp(long) internally stores time without millisecs, and millisecs go to nano part
+    public static Timestamp parseTimestamp(String timestamp) {
+        if (timestamp == null) {
+            throw new IllegalArgumentException("Found null timestamp!");
+        }
+
+        if (NONE.equals(timestamp)) {
+            throw new IllegalArgumentException("Found timestamp with 'None' inside!");
+        }
+
+        String[] tokens = timestamp.split("\\.");
+        String withoutFractional;
+
+        int nanoSecs;
+
+        if (tokens.length == 2) {
+            withoutFractional = tokens[0];
+
+            int factor;
+            if (tokens[1].length() == 6) {
+                factor = 1000;
+            } else if (tokens[1].length() == 3) {
+                factor = 1000000;
+            } else {
+                throw new IllegalArgumentException("Couldn0t parse timestamp:" + timestamp
+                    + "  ! unsupported fractional length: " + tokens[1].length());
+            }
+            try {
+                nanoSecs = Integer.parseInt(tokens[1]) * factor;
+
+            } catch (NumberFormatException ex) {
+                throw new IllegalArgumentException("Couldn0t parse timestamp:" + timestamp
+                    + "  ! invalid fractional part:" + tokens[1]);
+            }
+
+        } else if (tokens.length == 1) {
+            withoutFractional = timestamp;
+            nanoSecs = 0;
+        } else {
+            throw new IllegalArgumentException("Error while parsing timestamp:" + timestamp);
+        }
+
+        try {
+            DateFormat formatter = new SimpleDateFormat(CKAN_NO_MILLISECS_PATTERN);
+            formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
+            long time = formatter.parse(withoutFractional).getTime();
+            Timestamp ret = new Timestamp(time);
+            ret.setNanos(nanoSecs);
+            return ret;
+
+        } catch (ParseException ex) {
+            throw new IllegalArgumentException("Error while parsing timestamp:" + timestamp, ex);
+        }
+
+    }
+
+    /**
+     * Formats a timestamp according to {@link #CKAN_TIMESTAMP_PATTERN}, with
+     * precision up to microseconds.
+     *
+     * @throws IllegalArgumentException if timestamp can't be parsed.
+     * @see #parseTimestamp(java.lang.String) for the inverse process.
+     * @since 0.4.1
+     */
+    // NOTE: Timestamp.toString can't be used as it is locale timezone dependent...
+    public static String formatTimestamp(Timestamp timestamp) {
+
+        if (timestamp == null) {
+            throw new IllegalArgumentException("Found null timestamp!");
+        }
+        DateFormat formatter = new SimpleDateFormat(CKAN_NO_MILLISECS_PATTERN);
+        formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
+        String withoutFractional = formatter.format(timestamp);
+
+        int micros = timestamp.getNanos() / 1000;
+        String microsString = Strings.padStart(Integer.toString(micros), 6, '0');
+
+        return withoutFractional + "." + microsString;
+
+    }
+
+    /**
+     * @params s a string to encode in a format suitable for URLs.
+     */
+    private static String urlEncode(String s) {
+        try {
+            return URLEncoder.encode(s, "UTF-8")
+                .replaceAll("\\+", "%20");
+        } catch (UnsupportedEncodingException ex) {
+            throw new JackanException("Unsupported encoding", ex);
+        }
     }
 
     /**
@@ -1327,12 +1429,12 @@ public class CkanClient {
         StringBuilder params = new StringBuilder();
 
         params.append("rows=")
-                .append(limit)
-                .append("&start=")
-                .append(offset);
+            .append(limit)
+            .append("&start=")
+            .append(offset);
 
         if (query.getText()
-                .length() > 0) {
+            .length() > 0) {
             params.append("&q=");
             params.append(urlEncode(query.getText()));
         }
@@ -1347,9 +1449,9 @@ public class CkanClient {
 
         if (fq.length() > 0) {
             params.append("&fq=")
-                    .append(urlEncode(fq.insert(0, "(")
-                            .append(")")
-                            .toString()));
+                .append(urlEncode(fq.insert(0, "(")
+                    .append(")")
+                    .toString()));
         }
 
         DatasetSearchResponse dsr;
@@ -1394,12 +1496,12 @@ public class CkanClient {
             json = getObjectMapperForPosting(CkanDatasetBase.class).writeValueAsString(dataset);
         } catch (IOException e) {
             throw new CkanException(COULDNT_JSONIZE + dataset.getClass()
-                    .getSimpleName(),
-                    this, e);
+                .getSimpleName(),
+                this, e);
         }
 
         DatasetResponse response = postHttp(DatasetResponse.class, "/api/3/action/package_create", json,
-                ContentType.APPLICATION_JSON);
+            ContentType.APPLICATION_JSON);
 
         return response.result;
     }
@@ -1424,14 +1526,23 @@ public class CkanClient {
             json = getObjectMapperForPosting(CkanDatasetBase.class).writeValueAsString(dataset);
         } catch (IOException ex) {
             throw new CkanException(COULDNT_JSONIZE + dataset.getClass()
-                    .getSimpleName(),
-                    this, ex);
+                .getSimpleName(),
+                this, ex);
 
         }
 
         return postHttp(DatasetResponse.class, "/api/3/action/package_update", json,
-                ContentType.APPLICATION_JSON).result;
+            ContentType.APPLICATION_JSON).result;
 
+    }
+
+    public static List<CkanPair> extrasMapToList(Map<String, String> map) {
+        ArrayList ret = new ArrayList();
+
+        for (String key : map.keySet()) {
+            ret.add(new CkanPair(key, map.get(key)));
+        }
+        return ret;
     }
 
     private void mergeResources(@Nullable List<CkanResource> resourcesToMerge, List<CkanResource> targetResources) {
@@ -1441,7 +1552,7 @@ public class CkanClient {
                 for (int i = 0; i < targetResources.size(); i++) {
                     CkanResource targetRes = targetResources.get(i);
                     if (resourceToMerge.getId() != null && resourceToMerge.getId()
-                            .equals(targetRes.getId())) {
+                        .equals(targetRes.getId())) {
                         targetResources.set(i, resourceToMerge);
                         replaced = true;
                         break;
@@ -1461,7 +1572,7 @@ public class CkanClient {
                 for (int i = 0; i < targetGroups.size(); i++) {
                     CkanGroup targetRes = targetGroups.get(i);
                     if (groupToMerge.getId() != null && groupToMerge.getId()
-                            .equals(targetRes.getId())) {
+                        .equals(targetRes.getId())) {
                         targetGroups.set(i, groupToMerge);
                         replaced = true;
                         break;
@@ -1482,7 +1593,7 @@ public class CkanClient {
                 for (int i = 0; i < targetDatasetRelationships.size(); i++) {
                     CkanDatasetRelationship targetRes = targetDatasetRelationships.get(i);
                     if (relationshipToMerge.getId() != null && relationshipToMerge.getId()
-                            .equals(targetRes.getId())) {
+                        .equals(targetRes.getId())) {
                         targetDatasetRelationships.set(i, relationshipToMerge);
                         replaced = true;
                         break;
@@ -1503,7 +1614,7 @@ public class CkanClient {
                 for (int i = 0; i < targetTags.size(); i++) {
                     CkanTag targetRes = targetTags.get(i);
                     if (tagToMerge.getId() != null && tagToMerge.getId()
-                            .equals(targetRes.getId())) {
+                        .equals(targetRes.getId())) {
                         targetTags.set(i, tagToMerge);
                         replaced = true;
                         break;
@@ -1598,13 +1709,13 @@ public class CkanClient {
             json = getObjectMapperForPosting(CkanDatasetBase.class).writeValueAsString(dataset);
         } catch (IOException ex) {
             throw new JackanException(COULDNT_JSONIZE + dataset.getClass()
-                    .getSimpleName(),
-                    ex);
+                .getSimpleName(),
+                ex);
 
         }
 
         return postHttp(DatasetResponse.class, "/api/3/action/package_update", json,
-                ContentType.APPLICATION_JSON).result;
+            ContentType.APPLICATION_JSON).result;
 
     }
 
@@ -1649,12 +1760,12 @@ public class CkanClient {
             json = getObjectMapperForPosting(CkanOrganization.class).writeValueAsString(organization);
         } catch (IOException e) {
             throw new CkanException(COULDNT_JSONIZE + organization.getClass()
-                    .getSimpleName(),
-                    this, e);
+                .getSimpleName(),
+                this, e);
 
         }
         return postHttp(OrganizationResponse.class, "/api/3/action/organization_create", json,
-                ContentType.APPLICATION_JSON).result;
+            ContentType.APPLICATION_JSON).result;
     }
 
     /**
@@ -1676,8 +1787,8 @@ public class CkanClient {
             json = getObjectMapperForPosting(CkanGroup.class).writeValueAsString(group);
         } catch (IOException e) {
             throw new CkanException(COULDNT_JSONIZE + group.getClass()
-                    .getSimpleName(),
-                    this, e);
+                .getSimpleName(),
+                this, e);
 
         }
         return postHttp(GroupResponse.class, "/api/3/action/group_create", json, ContentType.APPLICATION_JSON).result;
@@ -1694,125 +1805,19 @@ public class CkanClient {
         return proxy;
     }
 
-    @JsonSerialize(as = CkanResourceBase.class)
-    private abstract static class CkanResourceForPosting {
-    }
-
-    @JsonSerialize(as = CkanDatasetBase.class)
-    private abstract static class CkanDatasetForPosting {
-    }
-
-    @JsonSerialize(as = CkanGroupOrgBase.class)
-    private abstract static class CkanGroupOrgForPosting {
-    }
-
-    @JsonSerialize(as = GroupForDatasetPosting.class)
-    abstract static class GroupForDatasetPosting extends CkanGroupOrgBase {
-
-        @JsonIgnore
-        @Override
-        public List<CkanUser> getUsers() {
-            return super.getUsers();
-        }
-    }
-
-    @JsonSerialize(as = CkanUserBase.class)
-    private abstract static class CkanUserForPosting {
-    }
-
-    @JsonSerialize(as = CkanTagBase.class)
-    private abstract static class CkanTagForPosting {
-    }
-
     /**
-     * Builder for the client. The builder is not threadsafe and you can use one
-     * builder instance to build only one client instance.
-     *
-     * @author David Leoni
+     * Convenience method to create a Builder with provided client to modify.
+     * <p>
+     * <strong>WARNING:</strong> The passed client will be modified, so
+     * <strong> DO NOT </strong> pass an already built client.
+     * </p>
+     * <p>
+     * The builder is not threadsafe and you can use one builder instance to
+     * build only one client instance.
+     * </p>
      */
-    public static class Builder {
-        private CkanClient client;
-        private boolean created;
-
-        protected Builder(CkanClient client) {
-            checkNotNull(client);
-            this.client = client;
-            this.created = false;
-        }
-
-        protected CkanClient getClient() {
-            return client;
-        }
-
-        protected boolean getCreated() {
-            return created;
-        }
-
-        protected void checkNotCreated() {
-            if (created) {
-                throw new IllegalStateException("Builder was already used to create a client!");
-            }
-        }
-
-        /**
-         * Sets the catalog url i.e. http://data.gov.uk.
-         * <p>
-         * Internally, it will be stored in a normalized format (to avoid i.e.
-         * trailing slashes).
-         */
-        public Builder setCatalogUrl(String catalogUrl) {
-            checkNotCreated();
-            checkNotEmpty(catalogUrl, "invalid ckan catalog url");
-            this.client.catalogUrl = removeTrailingSlash(catalogUrl);
-            return this;
-        }
-
-        /**
-         * Sets the private token string for ckan repository
-         */
-        public Builder setCkanToken(@Nullable String ckanToken) {
-            checkNotCreated();
-            this.client.ckanToken = ckanToken;
-            return this;
-        }
-
-        /**
-         * Sets the proxy used to perform GET and POST calls
-         *
-         * @param proxyUri the proxy used by the client, usually in a format with
-         *                 address and port like {@code my.own-proxy.org:1234}
-         */
-        public Builder setProxy(@Nullable String proxyUri) {
-            checkNotCreated();
-
-            if (proxyUri == null) {
-                this.client.proxy = null;
-            } else {
-                this.client.proxy = TodUtils.removeTrailingSlash(proxyUri);
-            }
-
-            return this;
-        }
-
-        /**
-         * Sets the connection timeout expressed as number of milliseconds. Must
-         * be greater than zero, otherwise IllegalArgumentException is thrown.
-         *
-         * @throws IllegalArgumentException is value is less than 1.
-         */
-        public Builder setTimeout(int timeout) {
-            checkNotCreated();
-            checkArgument(timeout > 0, "Timeout must be > 0 ! Found instead %s", timeout);
-            this.client.timeout = timeout;
-            return this;
-        }
-
-        public CkanClient build() {
-            checkNotCreated();
-            checkNotEmpty(this.client.catalogUrl, "Invalid catalog url!");
-            this.created = true;
-            return this.client;
-        }
+    protected static CkanClient.Builder newBuilder(CkanClient client) {
+        return new Builder(client);
     }
 
 }

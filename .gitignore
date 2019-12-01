@@ -4,7 +4,6 @@
 *.class
 .com.apple.timemachine.supported
 .import-temp/
-*.iml
 /target
 /reports
 /dependency-reduced-pom.xml
