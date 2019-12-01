@@ -83,8 +83,9 @@ public class CkanDatasetBase {
      * Constructor with the minimal set of attributes required to successfully
      * create a dataset on the server.
      *
-     * @param name the dataset name (contains no spaces and has dashes as
-     * separators, i.e. "limestone-pavement-orders")
+     * @param name
+     *            the dataset name (contains no spaces and has dashes as
+     *            separators, i.e. "limestone-pavement-orders")
      */
     public CkanDatasetBase(String name) {
         this();
@@ -160,9 +161,9 @@ public class CkanDatasetBase {
 
     /**
      * Adds CkanGroups
-     * 
+     *
      * @param ckanGroups The CkanGroups elements
-     * 
+     *
      * @since 0.4.3
      */
     public void addGroups(CkanGroup... ckanGroups) {
@@ -204,9 +205,9 @@ public class CkanDatasetBase {
 
     /**
      * Adds CkanExtras
-     * 
+     *
      * @param extras The CkanExtra elements
-     * 
+     *
      * @since 0.4.3
      */
     public void addExtras(CkanPair... extras) {
@@ -338,9 +339,9 @@ public class CkanDatasetBase {
 
     /**
      * Adds CkanResources
-     * 
+     *
      * @param resources The CkanResources elements
-     * 
+     *
      * @since 0.4.3
      */
     public void addCkanResources(CkanResource... resources) {
@@ -382,7 +383,7 @@ public class CkanDatasetBase {
      * Adds CkanTag
      *
      * @param tags The CkanTags elements
-     * 
+     *
      * @since 0.4.3
      */
     public void addTags(CkanTag... tags) {
