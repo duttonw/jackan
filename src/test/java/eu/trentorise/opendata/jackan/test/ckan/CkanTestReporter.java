@@ -1,5 +1,5 @@
-/* 
- * Copyright 2015 Trento Rise  (trentorise.eu) 
+/*
+ * Copyright 2015 Trento Rise  (trentorise.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,14 +26,8 @@ import eu.trentorise.opendata.commons.TodConfig;
 import eu.trentorise.opendata.jackan.CkanClient;
 import eu.trentorise.opendata.jackan.test.JackanTestConfig;
 import eu.trentorise.opendata.commons.TodUtils;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+
+import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -78,7 +72,7 @@ public class CkanTestReporter {
      * Takes as first argument the catalog list files to be used. If not
      * provided, by default test/resources/ckan-instances.txt file is used.
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws UnsupportedEncodingException {
 
         JackanTestConfig.of()
                         .loadConfig();
@@ -137,10 +131,8 @@ public class CkanTestReporter {
             }
 
         }
-        try {
+        try(BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"))) {
             String str;
-
-            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 
             boolean readingName = true;
             String name = "";
@@ -157,13 +149,6 @@ public class CkanTestReporter {
         } catch (IOException ex) {
             Logger.getLogger(CkanTestReporter.class.getName())
                   .log(Level.SEVERE, null, ex);
-        } finally {
-            try {
-                if (is != null) {
-                    is.close();
-                }
-            } catch (Throwable ignore) {
-            }
         }
         /*
          * TODO validate urls: URL catURL; try { catURL = new URL(catalogURL); }
@@ -175,8 +160,8 @@ public class CkanTestReporter {
         return catalogsBuilder.build();
     }
 
-    public static final String REPORT_PREFIX = "jackan-scan";
-    public static final String TEST_RESULT_PREFIX = "test-result-";
+    private static final String REPORT_PREFIX = "jackan-scan";
+    private static final String TEST_RESULT_PREFIX = "test-result-";
 
     private static TestResult runTest(int testId, CkanClient client, String catalogName, String testName) {
         Optional<Throwable> error;
@@ -386,10 +371,10 @@ public class CkanTestReporter {
             labelValue(html, "Started: ", formatDateUpToSecond(runSuite.getStartTime()));
             labelValue(html, "Finished: ", formatDateUpToSecond(runSuite.getEndTime()));
             labelValue(html, "Catalogs scanned: ", Integer.toString(catalogs.keySet()                                                                            .size()));
-            labelValue(html, "Tests per catalog executed: ", Integer.toString(testNames.size()));            
+            labelValue(html, "Tests per catalog executed: ", Integer.toString(testNames.size()));
             html.br()
                 .br();
-                        
+
             Escaper escaper = HtmlEscapers.htmlEscaper();
 
             html.div(class_("outer"))
@@ -441,7 +426,7 @@ public class CkanTestReporter {
                                          .size();
                 html.td()
                     .b()
-                    .write(passedByName + "/" + catalogs.size())                                                     
+                    .write(passedByName + "/" + catalogs.size())
                     ._b()
                     ._td();
 
@@ -479,8 +464,8 @@ public class CkanTestReporter {
         return outputFileContent;
     }
 
-   
-    
+
+
     private static int catalogsWithErrors(RunSuite runSuite) {
         Map<String, Integer> map = new HashMap();
         for (TestResult tr : runSuite.getResults()){
@@ -547,20 +532,20 @@ public class CkanTestReporter {
 
     }
 
-    public static void saveToDirectory(File outputDirectory, String indexContent, RunSuite runSuite) {
+    public static void saveToDirectory(File outputDirectory, String indexContent, RunSuite runSuite) throws UnsupportedEncodingException {
 
         outputDirectory.mkdirs();
 
         PrintWriter outIndex;
         try {
-            outIndex = new PrintWriter(outputDirectory + "/index.html");
+            outIndex = new PrintWriter("UTF-8", outputDirectory + "/index.html");
             outIndex.write(indexContent);
             outIndex.close();
 
             for (TestResult result : runSuite.getResults()) {
                 PrintWriter outResult;
                 String resultHtml = renderTestResult(result);
-                outResult = new PrintWriter(outputDirectory + "/" + TEST_RESULT_PREFIX + result.getId() + ".html");
+                outResult = new PrintWriter("UTF-8",outputDirectory + "/" + TEST_RESULT_PREFIX + result.getId() + ".html");
                 outResult.write(resultHtml);
                 outResult.close();
             }

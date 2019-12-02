@@ -17,9 +17,7 @@ package eu.trentorise.opendata.jackan;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -33,7 +31,6 @@ import com.google.common.io.CharStreams;
 import eu.trentorise.opendata.commons.TodUtils;
 import eu.trentorise.opendata.jackan.exceptions.*;
 import eu.trentorise.opendata.jackan.model.*;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.fluent.Request;
 import org.apache.http.client.fluent.Response;
 import org.apache.http.entity.ContentType;
@@ -248,14 +245,9 @@ public class CkanClient {
     }
 
     /**
-     * Retrieves the Jackson object mapper for reading operations. Internally,
-     * Object mapper is initialized at first call.
+     * Retrieves the Jackson object mapper for reading operations.
      */
     static ObjectMapper getObjectMapper() {
-        if (objectMapper == null) {
-            objectMapper = new ObjectMapper();
-            configureObjectMapper(objectMapper);
-        }
         return objectMapper;
     }
 
@@ -270,6 +262,12 @@ public class CkanClient {
     protected CkanClient() {
         this.timeout = DEFAULT_TIMEOUT;
         this.catalogUrl = "";
+        /* Object mapper is initialized when this class is initialized. */
+        objectMapper = new ObjectMapper();
+        configureObjectMapper(objectMapper);
+        if (System.getenv("http_proxy") != null) {
+            this.proxy = System.getenv("http_proxy");
+        }
     }
 
     /**
@@ -458,7 +456,7 @@ public class CkanClient {
                 for (int i = 0; i < extrasList.get(k).size(); i++) {
                     JsonNode jsonNode = extrasList.get(k).get(i);
                     //this is illegal with this client
-                    if (jsonNode.get("value").getClass().getSimpleName().equalsIgnoreCase("ArrayNode")) {
+                    if ("ArrayNode".equalsIgnoreCase(jsonNode.get("value").getClass().getSimpleName())) {
                         ArrayNode value = (ArrayNode) jsonNode.get("value");
                         String cleanString = "";
                         for (int j = 0; j < value.size(); j++) {

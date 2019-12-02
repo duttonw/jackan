@@ -1,5 +1,5 @@
-/* 
- * Copyright 2015 Trento Rise  (trentorise.eu) 
+/*
+ * Copyright 2015 Trento Rise  (trentorise.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,22 +83,22 @@ public class CkanJacksonTest {
         CkanClient.formatTimestamp(new Timestamp(123));
         CkanClient.parseTimestamp("1970-01-01T01:00:00.000010");
     }
-    
+
     @Test
     public void jacksonExample() throws JsonProcessingException, IOException {
-        
+
         // your Jackson ObjectMapper
         ObjectMapper objectMapper = new ObjectMapper();
-        
+
         CkanClient.configureObjectMapper(objectMapper);
-        
+
         CkanDataset dataset = new CkanDataset();
         dataset.setName("hello");
-        
+
         String json = objectMapper.writeValueAsString(dataset);
         System.out.println("json = " +  json);
         CkanDataset reconstructed = objectMapper.readValue(json, CkanDataset.class);
-        
+
         assert "hello".equals(reconstructed.getName());
     }
 
@@ -107,73 +107,73 @@ public class CkanJacksonTest {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JackanModule());
     }
-                
-    
+
+
     @Test
     public void jacksonPostingExample() throws JsonProcessingException{
         ObjectMapper mapperForDatasetPosting = new ObjectMapper();
         CkanClient.configureObjectMapperForPosting(mapperForDatasetPosting, CkanDatasetBase.class);
-                
+
         CkanDataset dataset = new CkanDataset("random-name-" + new Random().nextLong());
-        
-        // this would be the POST body. 
+
+        // this would be the POST body.
         String json = mapperForDatasetPosting.writeValueAsString(dataset);
     }
-    
+
     @Test
     public void testTimestampParser() {
 
         TimeZone defaultTimezone = TimeZone.getDefault();
-        
+
         try {
-            LOG.info("Setting system timezone to: Europe/Rome..");         
+            LOG.info("Setting system timezone to: Europe/Rome..");
             TimeZone.setDefault(TimeZone.getTimeZone("Europe/Rome"));
-    
+
             String sts = "1970-01-01T00:00:00.000010";
             Timestamp ts1 = new Timestamp(0);
             assertEquals(0, ts1.getTime());
             assertEquals(0, ts1.getNanos());
             ts1.setNanos(10000); // = 10 microsecs
             assertEquals(sts, CkanClient.formatTimestamp(ts1));
-            
+
             Timestamp ts2 = new Timestamp(0);
             ts2.setNanos(1000000); // = 1 millisec
             assertEquals("1970-01-01T00:00:00.001000", CkanClient.formatTimestamp(ts2));
-            
+
             assertEquals(ts1.getTime(), CkanClient.parseTimestamp(sts).getTime());
             assertEquals(ts1.getNanos(), CkanClient.parseTimestamp(sts).getNanos());
             assertEquals(0, CkanClient.parseTimestamp("1970-01-01T00:00:00").getTime());
             assertEquals(0, CkanClient.parseTimestamp("1970-01-01T00:00:00").getNanos());
             assertEquals(1, CkanClient.parseTimestamp("1970-01-01T00:00:00.001000").getTime());
             assertEquals(1000000, CkanClient.parseTimestamp("1970-01-01T00:00:00.001000").getNanos());
-            
+
 
             assertEquals(1, CkanClient.parseTimestamp("1970-01-01T00:00:00.001").getTime());
             assertEquals(1000000, CkanClient.parseTimestamp("1970-01-01T00:00:00.001").getNanos());
 
-    
+
             try {
                 CkanClient.formatTimestamp(null);
                 Assert.fail("Shouldn't arrive here!");
             }
             catch (IllegalArgumentException ex) {
-    
+
             }
-    
+
             try {
                 CkanClient.parseTimestamp(null);
                 Assert.fail("Shouldn't arrive here!");
             }
             catch (IllegalArgumentException ex) {
-    
+
             }
-    
+
             try {
                 CkanClient.parseTimestamp("bla");
                 Assert.fail("Shouldn't arrive here!");
             }
             catch (IllegalArgumentException ex) {
-    
+
             }
         }
         finally {
@@ -223,7 +223,7 @@ public class CkanJacksonTest {
         String json = "{\"size\":\"\"}";
         CkanResource r = om.readValue(json, CkanResource.class);
 
-        assertTrue(r.getSize().equals(""));
+        assertEquals("",r.getSize());
     }
 
     static public class TimestampWrapper {
@@ -302,7 +302,7 @@ public class CkanJacksonTest {
     @Test
     public void testWriteOrganization() throws IOException {
 
-        CkanOrganization cg = new CkanOrganization();        
+        CkanOrganization cg = new CkanOrganization();
         String json = objectMapper.writeValueAsString(cg);
         assertEquals(true, new ObjectMapper().readTree(json).get("is_organization").asBoolean());
     }

@@ -18,14 +18,12 @@ package eu.trentorise.opendata.jackan.test.ckan;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import eu.trentorise.opendata.jackan.CheckedCkanClient;
 import eu.trentorise.opendata.jackan.CkanClient;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Iterator;
 import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
@@ -47,11 +45,11 @@ class ExperimentalCkanClient extends CkanClient {
     private ExperimentalCkanClient(){
         super();
     }
-    
+
     public ExperimentalCkanClient(String URL, String token) {
         super(URL, token);
     }
-    
+
     /**
      * Returns a builder instance. The builder is not threadsafe and you can use
      * one builder instance to build only one client instance.
@@ -59,7 +57,7 @@ class ExperimentalCkanClient extends CkanClient {
     public static CkanClient.Builder builder() {
         return CkanClient.newBuilder(new ExperimentalCkanClient());
     }
-    
+
     /**
      * Uploads a file using file storage api, which I think is deprecated. As of
      * Aug 2015, coesn't work neither with demo.ckan.org nor dati.trentino
@@ -86,7 +84,7 @@ class ExperimentalCkanClient extends CkanClient {
 
                 //now parse JSON
                 //JSONObject obj = new JSONObject(os.toString());
-                JsonNode obj = new ObjectMapper().readTree(os.toString());
+                JsonNode obj = new ObjectMapper().readTree(os.toString("UTF-8"));
 
                 //post the file now
                 String uploadFileUrl = getCatalogUrl() + obj.get("action").asText();
@@ -101,7 +99,7 @@ class ExperimentalCkanClient extends CkanClient {
                     //JSONObject fieldObj = fields.getJSONObject(i);
                     String fieldName = fieldObj.get("name").asText();
                     String fieldValue = fieldObj.get("value").asText();
-                    if (fieldName.equals("key")) {
+                    if ("key".equals(fieldName)) {
                         filekey = fieldValue;
                     }
                     mpEntity.addPart(fieldName, new StringBody(fieldValue, "multipart/form-data", Charset.forName("UTF-8")));
@@ -116,12 +114,12 @@ class ExperimentalCkanClient extends CkanClient {
                  if (fieldName.equals("key")) {
                  filekey = fieldValue;
                  }
-                 mpEntity.addPart(fieldName, new StringBody(fieldValue, "multipart/form-data", Charset.forName("UTF-8")));                    
+                 mpEntity.addPart(fieldName, new StringBody(fieldValue, "multipart/form-data", Charset.forName("UTF-8")));
                  }
                  */
                 //	assure that we got the file key
                 if (filekey == null) {
-                    throw new RuntimeException("failed to get the file key from CKAN storage form API. the response from " + formUrl + " was: " + os.toString());
+                    throw new RuntimeException("failed to get the file key from CKAN storage form API. the response from " + formUrl + " was: " + os.toString("UTF-8"));
                 }
 
                 //the file should be the last part

@@ -1,21 +1,15 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
-	<!-- /* * Copyright 2015 Trento Rise (trentorise.eu) * * Licensed under 
-		the Apache License, Version 2.0 (the "License"); * you may not use this file 
-		except in compliance with the License. * You may obtain a copy of the License 
-		at * * http://www.apache.org/licenses/LICENSE-2.0 * * Unless required by 
-		applicable law or agreed to in writing, software * distributed under the 
-		License is distributed on an "AS IS" BASIS, * WITHOUT WARRANTIES OR CONDITIONS 
-		OF ANY KIND, either express or implied. * See the License for the specific 
+	<!-- /* * Copyright 2015 Trento Rise (trentorise.eu) * * Licensed under
+		the Apache License, Version 2.0 (the "License"); * you may not use this file
+		except in compliance with the License. * You may obtain a copy of the License
+		at * * http://www.apache.org/licenses/LICENSE-2.0 * * Unless required by
+		applicable law or agreed to in writing, software * distributed under the
+		License is distributed on an "AS IS" BASIS, * WITHOUT WARRANTIES OR CONDITIONS
+		OF ANY KIND, either express or implied. * See the License for the specific
 		language governing permissions and * limitations under the License. */ -->
 
 	<modelVersion>4.0.0</modelVersion>
-
-	<parent>
-		<groupId>eu.trentorise.opendata</groupId>
-		<artifactId>tod-super-pom</artifactId>
-		<version>1.3.0</version>
-	</parent>
 
     <groupId>eu.trentorise.opendata</groupId>
 	<artifactId>jackan</artifactId>
@@ -41,10 +35,18 @@
             <url>https://oss.sonatype.org/content/repositories/snapshots</url>
     	        <releases><enabled>false</enabled></releases>
          	<snapshots><enabled>true</enabled></snapshots>
-        </repository>        
+        </repository>
     </repositories>
 
 	<profiles>
+		<profile>
+			<id>quickrun</id> <!-- to disable pmd/findbugs/owasp check for quick runs mvn ${command} -Pquickrun -->
+			<properties>
+				<dependency.skip>true</dependency.skip>
+				<pmd.skip>true</pmd.skip>
+				<findbugs.skip>true</findbugs.skip>
+			</properties>
+		</profile>
 		<profile>
 			<id>release</id>
 			<build>
@@ -93,36 +95,51 @@
 	</profiles>
 
 	<build>
+		<filters>
+<!--			<filter>${build.properties}</filter>-->
+		</filters>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
+			</resource>
+		</resources>
+		<testResources>
+			<testResource>
+				<directory>src/test/resources</directory>
+				<filtering>true</filtering>
+			</testResource>
+		</testResources>
 		<plugins>
-
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
+				<groupId>pl.project13.maven</groupId>
+				<artifactId>git-commit-id-plugin</artifactId>
+				<version>3.0.1</version>
+				<executions>
+					<execution>
+						<id>get-the-git-infos</id>
+						<goals>
+							<goal>revision</goal>
+						</goals>
+						<!-- *NOTE*: The default phase of revision is initialize, but in case you want to change it, you can do so by adding the phase here -->
+						<phase>initialize</phase>
+					</execution>
+					<execution>
+						<id>validate-the-git-infos</id>
+						<goals>
+							<goal>validateRevision</goal>
+						</goals>
+						<!-- *NOTE*: The default phase of validateRevision is verify, but in case you want to change it, you can do so by adding the phase here -->
+						<phase>package</phase>
+					</execution>
+				</executions>
+				<configuration>
+					<!-- this is false by default, forces the plugin to generate the git.properties file -->
+					<generateGitPropertiesFile>true</generateGitPropertiesFile>
+					<!-- The path for the properties file to be generated. See Super Pom for default variable reference https://maven.apache.org/guides/introduction/introduction-to-the-pom.html -->
+					<generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
+				</configuration>
 			</plugin>
-
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>animal-sniffer-maven-plugin</artifactId>
-			</plugin>
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>build-helper-maven-plugin</artifactId>
-			</plugin>
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>buildnumber-maven-plugin</artifactId>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-enforcer-plugin</artifactId>
-			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -137,7 +154,7 @@
 							<artifactSet>
 								<includes>
 									<include> eu.trentorise.opendata.jackan* </include>
-									
+
 									<include>org.apache.httpcomponents:httpcore</include>
 									<include>org.apache.httpcomponents:httpcore-nio</include>
 									<include>org.apache.httpcomponents:httpmime</include>
@@ -163,17 +180,132 @@
 
 
 			<plugin>
-				<groupId>eu.trentorise.opendata</groupId>
-				<artifactId>josman-maven-plugin</artifactId>
+				<groupId>org.owasp</groupId><artifactId>dependency-check-maven</artifactId><version>5.2.3</version>
+				<configuration>
+					<suppressionFile>${project.basedir}/src/main/config/owasp-dependency-checker-suppressions.xml</suppressionFile>
+					<failBuildOnCVSS>4</failBuildOnCVSS>
+					<skip>${dependency.skip}</skip>
+					<bundleAuditAnalyzerEnabled>false</bundleAuditAnalyzerEnabled>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>validate</phase> <!-- too late at prepare-package -->
+						<goals><goal>check</goal></goals>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
-				<groupId>com.github.github</groupId>
-				<artifactId>site-maven-plugin</artifactId>
-				<version>0.12</version>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>3.1.0</version>
+				<dependencies>
+					<dependency>
+						<groupId>com.puppycrawl.tools</groupId>
+						<artifactId>checkstyle</artifactId>
+						<version>8.26</version>
+					</dependency>
+				</dependencies>
 				<configuration>
-					<merge>true</merge>
+					<includeTestSourceDirectory>true</includeTestSourceDirectory>
+					<configLocation>${project.basedir}/src/main/config/checkstyle_rules.xml</configLocation>
+					<propertyExpansion>config.directory=${project.basedir}/src/main/config</propertyExpansion>
+					<excludes>
+						node_modules
+					</excludes>
 				</configuration>
-
+				<executions>
+					<execution>
+						<phase>validate</phase> <!-- too late at prepare-package -->
+						<goals>
+							<!--<goal>checkstyle</goal>--> <!-- can be checkstyle to not fail the build-->
+							<goal>check</goal> <!-- make it die if not good -->
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<artifactId>maven-pmd-plugin</artifactId>
+				<version>3.12.0</version>
+				<dependencies>
+					<dependency>
+						<groupId>net.sourceforge.pmd</groupId>
+						<artifactId>pmd-core</artifactId>
+						<version>6.19.0</version>
+					</dependency>
+					<dependency>
+						<groupId>net.sourceforge.pmd</groupId>
+						<artifactId>pmd-java</artifactId>
+						<version>6.19.0</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<includeTests>false</includeTests>
+					<rulesets>
+						<ruleset>/rulesets/java/basic.xml</ruleset>
+						<ruleset>${project.basedir}/src/main/config/pmd-rules.xml</ruleset>
+					</rulesets>
+					<excludeRoots>
+						<excludeRoot>${project.basedir}/target/generated-sources</excludeRoot>
+					</excludeRoots>
+					<printFailingErrors>true</printFailingErrors>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>validate</phase> <!-- too late at prepare-package -->
+						<goals>
+							<goal>pmd</goal> <!--can be pmd be check once we have time to fix all errors-->
+							<!--<goal>check</goal>--> <!-- make it die if not good -->
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>findbugs-maven-plugin</artifactId>
+				<version>3.0.5</version>
+				<dependencies>
+					<dependency>
+						<groupId>com.google.code.findbugs</groupId>
+						<artifactId>findbugs</artifactId>
+						<version>3.0.1</version>
+					</dependency>
+					<dependency>
+						<groupId>com.google.code.findbugs</groupId>
+						<artifactId>annotations</artifactId>
+						<version>3.0.1</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<excludeFilterFile>${project.basedir}/src/main/config/findbugs-exclude.xml</excludeFilterFile>
+					<effort>Max</effort>
+					<threshold>High</threshold>
+					<includeTests>true</includeTests>
+					<plugins>
+						<plugin>
+							<groupId>com.h3xstream.findsecbugs</groupId>
+							<artifactId>findsecbugs-plugin</artifactId>
+							<version>1.10.1</version>
+						</plugin>
+						<plugin>
+							<groupId>com.mebigfatguy.fb-contrib</groupId>
+							<artifactId>fb-contrib</artifactId>
+							<version>7.4.7</version>
+						</plugin>
+						<plugin>
+							<groupId>org.mutabilitydetector</groupId>
+							<artifactId>MutabilityDetector4FindBugs</artifactId>
+							<version>0.9.3</version>
+						</plugin>
+					</plugins>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>prepare-package</phase>
+						<goals>
+							<!--<goal>findbugs</goal>--> <!--can be findbugs to not fail the build-->
+							<goal>check</goal> <!-- make it die if not good -->
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 
 			<!-- ************** TEST PLUGINS ***************** -->
@@ -184,6 +316,25 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
+			</plugin>
+
+			<plugin>
+				<groupId>com.github.github</groupId>
+				<artifactId>site-maven-plugin</artifactId>
+				<version>0.11</version>
+				<configuration>
+					<message>Creating site for ${project.version}</message>
+					<noJekyll />
+					<force>true</force>
+					<merge>false</merge>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>site</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 
 		</plugins>
@@ -207,8 +358,75 @@
 		</developer>
 	</developers>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>eu.trentorise.opendata</groupId>
+				<artifactId>tod-super-pom</artifactId>
+				<version>1.3.0</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
+
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>28.1-jre</version>
+		</dependency>
+
+		<!-- the Jackson core, which includes Streaming API, shared low-level abstractions (but NOT data-binding) -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+			<version>${jackson2.version}</version>
+		</dependency>
+
+		<!-- Just the annotations; use this dependency if you want to attach annotations
+        to classes without connecting them to the code. -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-annotations</artifactId>
+			<version>${jackson2.version}</version>
+		</dependency>
+
+		<!-- databinding; ObjectMapper, JsonNode and related classes are here -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>${jackson2.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-annotations</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-guava</artifactId>
+			<version>${jackson2.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-joda</artifactId>
+			<version>${jackson2.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>joda-time</groupId>
+					<artifactId>joda-time</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
 
 		<dependency>
 			<groupId>eu.trentorise.opendata</groupId>
@@ -224,7 +442,7 @@
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpcore</artifactId>
-			<version>${apache.http.version}</version>
+			<version>${apache.http.core.version}</version>
 		</dependency>
 
 		<dependency>
@@ -249,8 +467,9 @@
 		<dependency>
 			<groupId>org.apache.tika</groupId>
 			<artifactId>tika-core</artifactId>
-			<version>1.13</version>
+			<version>1.22</version>
 		</dependency>
+
 
 		<!-- ***************************** STUFF FOR TESTING ******************************** -->
 
@@ -260,11 +479,11 @@
 			<scope>test</scope>
 		</dependency>
 
-       <!--  needed even if it is a junit dep because maven shade excluding it from builds :-/ -->          	
+       <!--  needed even if it is a junit dep because maven shade excluding it from builds :-/ -->
 		<dependency>
 			<artifactId>hamcrest-core</artifactId>
 			<groupId>org.hamcrest</groupId>
-			<scope>test</scope>			
+			<scope>test</scope>
 		</dependency>
 
 
@@ -289,11 +508,11 @@
 				<!--  confliting with littleproxy  -->
 				<exclusion>
 					<groupId>org.apache.commons</groupId>
-					<artifactId>commons-lang3</artifactId>				
+					<artifactId>commons-lang3</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
-		
+
 		<dependency>
         	<groupId>org.littleshoot</groupId>
         	<artifactId>littleproxy</artifactId>
@@ -304,26 +523,28 @@
 	</dependencies>
 
 	<properties>
-		<apache.http.version>4.4.1</apache.http.version>
+		<apache.http.version>4.5.10</apache.http.version>
+		<apache.http.core.version>4.4.12</apache.http.core.version>
+		<maven.compiler.source>1.8</maven.compiler.source>
+		<maven.compiler.target>1.8</maven.compiler.target>
+		<jackson2.version>2.10.1</jackson2.version>
+		<dependency.skip>false</dependency.skip>
+		<checkstyle.skip>true</checkstyle.skip><!-- will turn on once formatting is corrected -->
 	</properties>
 
 	<reporting>
 		<plugins>
 
-			<!-- todo what's this for? -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jxr-plugin</artifactId>
-				<version>2.3</version>
+				<artifactId>maven-site-plugin</artifactId>
+				<version>3.8.2</version>
 			</plugin>
 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.12.1</version>
-				<configuration>
-					<configLocation>config/sun_checks.xml</configLocation>
-				</configuration>
+				<artifactId>maven-project-info-reports-plugin</artifactId>
+				<version>3.0.0</version>
 			</plugin>
 
 		</plugins>

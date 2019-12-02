@@ -41,7 +41,7 @@ import org.junit.Test;
 public class WriteCkanResourceIT extends WriteCkanTest {
 
     private static final Logger LOG = Logger.getLogger(WriteCkanResourceIT.class.getName());
-    
+
     @Test
     public void testCreateMinimal() {
 
@@ -53,8 +53,8 @@ public class WriteCkanResourceIT extends WriteCkanTest {
 
         checkNotEmpty(retRes.getId(), "Invalid created resource id!");
         assertEquals(resource.getUrl(), retRes.getUrl());
-        // latest ckan gives back packageId! 
-        // assertEquals(null, retRes.getPackageId()); 
+        // latest ckan gives back packageId!
+        // assertEquals(null, retRes.getPackageId());
 
         LOG.log(Level.INFO, "Created resource with id {0} in catalog {1}", new Object[]{retRes.getId(), JackanTestConfig.of().getOutputCkan()});
     }
@@ -74,7 +74,7 @@ public class WriteCkanResourceIT extends WriteCkanTest {
         checkNotEmpty(retRes.getId(), "Invalid created resource id!");
         assertEquals(resource.getUrl(), retRes.getUrl());
         // Checking inclusion, as i.e. from demo.ckan.org we might get extra gifts like 'datastore_active=false'
-        Tests.checkIsIncluded(resource.getOthers(), retRes.getOthers());
+        CkanClientTests.checkIsIncluded(resource.getOthers(), retRes.getOthers());
 
         LOG.log(Level.INFO, "Created resource with id {0} in catalog {1}", new Object[]{retRes.getId(), JackanTestConfig.of().getOutputCkan()});
     }
@@ -117,7 +117,7 @@ public class WriteCkanResourceIT extends WriteCkanTest {
         CkanResourceBase resource = new CkanResourceBase("upload", dataset.getId());
         File file = null;
         try {
-            file = tempFolder.newFile(Tests.JACKAN_TEST_PREFIX + "largefile.txt");
+            file = tempFolder.newFile(CkanClientTests.JACKAN_TEST_PREFIX + "largefile.txt");
             RandomAccessFile randomFile = new RandomAccessFile(file, "rw");
             randomFile.setLength(10000000);
         } catch (java.io.IOException e) {
@@ -258,8 +258,8 @@ public class WriteCkanResourceIT extends WriteCkanTest {
         assertEquals(retRes1.getUrl(), retRes2.getUrl());
         assertEquals("abc", retRes2.getDescription());
         assertEquals("123", retRes2.getSize());
-        Tests.checkIsIncluded(resource.getOthers(), retRes2.getOthers());
-        assertEquals(null, retRes2.getOwner());  // owner is not among api docs for creation, so hopefully was jsonignored when sending retRes1            
+        CkanClientTests.checkIsIncluded(resource.getOthers(), retRes2.getOthers());
+        assertEquals(null, retRes2.getOwner());  // owner is not among api docs for creation, so hopefully was jsonignored when sending retRes1
     }
 
     @Test
@@ -307,7 +307,7 @@ public class WriteCkanResourceIT extends WriteCkanTest {
         CkanDataset dataset2 = createRandomDataset();
         resource.setPackageId(dataset2.getId());
         CkanResource retResource2 = client.patchUpdateResource(retResource1);
-        
+
 
         boolean found = false;
         CkanDataset newDataset1 = client.getDataset(dataset1.getId());
@@ -367,7 +367,7 @@ public class WriteCkanResourceIT extends WriteCkanTest {
 
     /**
      * Shows what happens when resources are marked as 'deleted'
-     */ 
+     */
     @Test
     public void testDelete() {
         CkanDataset dataset = createRandomDataset(1);
@@ -378,8 +378,8 @@ public class WriteCkanResourceIT extends WriteCkanTest {
             nonAdminClient.getResource(resourceId);
             Assert.fail("Shouldn't find a deleted resource!");
         } catch (CkanNotFoundException ex){
-            
-        }        
+
+        }
     }
 
     @Test
@@ -394,5 +394,5 @@ public class WriteCkanResourceIT extends WriteCkanTest {
         }
 
     }
-       
+
 }

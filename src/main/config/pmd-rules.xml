@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="Form Submissions"
+    xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 http://pmd.sourceforge.net/ruleset_2_0_0.xsd">
+    <description>Selected PMD rules for SSQ applications</description>
+
+    <rule ref="category/java/bestpractices.xml">
+        <!-- multiple assertions are often helpful -->
+        <exclude name="JUnitTestContainsTooManyAsserts"/>
+        <!-- we use TestNG -->
+        <exclude name="JUnit4TestShouldUseBeforeAnnotation"/>
+        <exclude name="JUnit4TestShouldUseAfterAnnotation"/>
+    </rule>
+    <rule ref="category/java/design.xml">
+        <!-- we don't obey this law -->
+        <exclude name="LawOfDemeter" />
+        <!-- seems to be mostly false positives -->
+        <exclude name="DataClass"/>
+        <!-- these can be legitimate -->
+        <exclude name="ExcessivePublicCount"/>
+        <exclude name="TooManyFields"/>
+        <exclude name="TooManyMethods"/>
+        <exclude name="ExcessiveParameterList"/>
+        <exclude name="UseObjectForClearerAPI"/>
+        <!-- Struts frequently compels us to deal with Exception -->
+        <exclude name="AvoidCatchingGenericException"/>
+        <exclude name="SignatureDeclareThrowsException"/>
+    </rule>
+    <rule ref="category/java/performance.xml">
+        <!-- often we deliberately use a loop to populate lists of objects -->
+        <exclude name="AvoidInstantiatingObjectsInLoops"/>
+    </rule>
+    <rule ref="category/java/security.xml"/>
+</ruleset>

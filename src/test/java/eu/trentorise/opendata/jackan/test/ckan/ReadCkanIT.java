@@ -1,5 +1,5 @@
-/* 
- * Copyright 2015 Trento Rise  (trentorise.eu) 
+/*
+ * Copyright 2015 Trento Rise  (trentorise.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,7 +43,6 @@ import java.util.logging.Logger;
 import static junitparams.JUnitParamsRunner.$;
 import eu.trentorise.opendata.jackan.test.JackanTestRunner;
 import junitparams.Parameters;
-import org.apache.http.HttpHost;
 import org.junit.After;
 import org.junit.Assert;
 import static org.junit.Assert.assertEquals;
@@ -67,38 +66,38 @@ public class ReadCkanIT {
 
     public static final Logger logger = Logger.getLogger(ReadCkanIT.class.getName());
 
-    public static String DATI_TRENTINO = "http://dati.trentino.it";
-    public static String DATI_TOSCANA = "http://dati.toscana.it";
-    public static String DATI_MATERA = "http://dati.comune.matera.it";
-    public static String DATA_GOV_UK = "http://data.gov.uk";
-    public static String DATA_GOV_US = "http://catalog.data.gov";
-    public static String DATAHUB_IO = "http://datahub.io";
-    
+    public static final String DATI_TRENTINO = "http://dati.trentino.it";
+    public static final String DATI_TOSCANA = "http://dati.toscana.it";
+    private static final String DATI_MATERA = "http://dati.comune.matera.it";
+    private static final String DATA_GOV_UK = "http://data.gov.uk";
+    private static final String DATA_GOV_US = "http://catalog.data.gov";
+    private static final String DATAHUB_IO = "http://datahub.io";
+
 
     /** for testing timeouts */
-    public static String UNREACHABLE_HOST = "http://10.0.0.0";
-    
+    private static final String UNREACHABLE_HOST = "http://10.0.0.0";
+
     /**
      * National Oceanic and Atmospheric Administration (United States)
      */
-    public static String NOAA_GOV_US = "https://data.noaa.gov";
+    private static final String NOAA_GOV_US = "https://data.noaa.gov";
 
     /**
      * Unfortunately this one uses old api version, we can't use it.
      */
-    public static String DATI_PIEMONTE = "http://www.dati.piemonte.it/rpapisrv/api/rest";
+    private static final String DATI_PIEMONTE = "http://www.dati.piemonte.it/rpapisrv/api/rest";
 
-    public static final String LAGHI_MONITORATI_TRENTO_NAME = "laghi-monitorati-trento-143675";
-    public static final String LAGHI_MONITORATI_TRENTO_ID = "3745b44c-751f-40b3-8e97-ccd725bfbe8a";
-    public static final String LAGHI_MONITORATI_TRENTO_XML_RESOURCE_NAME = "Metadati in formato XML";
-    public static final String PRODOTTI_CERTIFICATI_DATASET_NAME = "prodotti-certificati";
-    public static final String PRODOTTI_CERTIFICATI_RESOURCE_ID = "fe507a10-4c49-4b18-8bf6-6705198cfd42";
-    public static final String POLITICHE_SVILUPPO_ORGANIZATION_NAME = "pat-s-sviluppo-rurale";
-    public static final String AGRICOLTURA_GROUP_NAME = "agricoltura";
+    private static final String LAGHI_MONITORATI_TRENTO_NAME = "laghi-monitorati-trento-143675";
+    private static final String LAGHI_MONITORATI_TRENTO_ID = "3745b44c-751f-40b3-8e97-ccd725bfbe8a";
+    private static final String LAGHI_MONITORATI_TRENTO_XML_RESOURCE_NAME = "Metadati in formato XML";
+    protected static final String PRODOTTI_CERTIFICATI_DATASET_NAME = "prodotti-certificati";
+    protected static final String PRODOTTI_CERTIFICATI_RESOURCE_ID = "fe507a10-4c49-4b18-8bf6-6705198cfd42";
+    protected static final String POLITICHE_SVILUPPO_ORGANIZATION_NAME = "pat-s-sviluppo-rurale";
+    protected static final String AGRICOLTURA_GROUP_NAME = "agricoltura";
 
     private Multimap<String, String> datasetList = LinkedListMultimap.create();
 
-    public static int TEST_ELEMENTS = 5;
+    public static final int TEST_ELEMENTS = 5;
 
     /**
      * Object mapper for reading
@@ -112,7 +111,7 @@ public class ReadCkanIT {
         return $(
                 $(new CkanClient(DATI_TRENTINO)),
                 $(new CkanClient(DATI_TOSCANA))
-        //$(new CkanClient(NOAA_GOV_US))                
+        //$(new CkanClient(NOAA_GOV_US))
         /*,
          $(new CkanClient(DATI_MATERA)),
          $(new CkanClient(DATA_GOV_UK)),
@@ -136,7 +135,7 @@ public class ReadCkanIT {
         objectMapper = null;
     }
 
- 
+
 
     /**
      * todo we should do some ckan internal version detector (sic)
@@ -253,7 +252,7 @@ public class ReadCkanIT {
     @Parameters(method = "clients")
     public void testUser(CkanClient client) {
         List<CkanUser> ul = client.getUserList();
-        assertTrue(ul.size() > 0);        
+        assertTrue(ul.size() > 0);
         for (CkanUser u : ul.subList(0, Math.min(ul.size(), TEST_ELEMENTS))) {
             CkanUser fetchedUser = client.getUser(u.getId());
             assertEquals(u.getName(), fetchedUser.getName());
@@ -410,7 +409,7 @@ public class ReadCkanIT {
 
     @Test
     public void testFullSearch() {
-                 
+
          SearchResults<CkanDataset> r = new CkanClient(DATI_TRENTINO).searchDatasets(CkanQuery.filter()
          .byText("elenco dei prodotti trentini")
          .byGroupNames("agricoltura")
@@ -419,7 +418,7 @@ public class ReadCkanIT {
          .byLicenseId("cc-zero"), 10, 0);
          assertEquals("cc-zero", r.getResults().get(0).getLicenseId());
          assertTrue("I should get at least one result", r.getResults().size() > 0);
-                
+
     }
 
     @Test
@@ -428,33 +427,33 @@ public class ReadCkanIT {
                 .setCatalogUrl(UNREACHABLE_HOST)
         .setTimeout(500)
         .build();
-        
+
         try {
             myClient.getApiVersion();
         } catch (CkanException ex){
-            
+
         }
-        
+
         try {
             myClient.getDatasetList();
         } catch (CkanException ex){
-            
+
         }
-        
+
     }
 
     /**
      * Preliminary testcase for Https issues.
-     * 
+     *
      * See https://github.com/opendatatrentino/jackan/issues/39
-     * 
+     *
      * @since 0.4.3
      */
     @Test
     public void testHttps(){
         CkanClient client = new CkanClient("https://datahub.io", null);
         List<String> dsl = client.getDatasetList(10,0);
-        assertTrue(dsl.size() > 0);       
+        assertTrue(dsl.size() > 0);
         logger.log(Level.FINE, dsl.toString());
     }
 
@@ -468,16 +467,16 @@ public class ReadCkanIT {
                 $("http://localhost")
         );
     }
-    
-    
+
+
     /**
      * Test cases for https://github.com/opendatatrentino/jackan/pull/12
      * @since 0.4.3
-     */      
+     */
     @Test
     @Parameters(method = "localhosts")
     public void testHttpProxy(String localhost){
-        int port = Tests.findFreePort();
+        int port = CkanClientTests.findFreePort();
         HttpProxyServer server =
                 DefaultHttpProxyServer.bootstrap()
                     .withPort(port)
@@ -487,13 +486,13 @@ public class ReadCkanIT {
             .setCatalogUrl(DATAHUB_IO)
             .setProxy(localhost + ":" + port)
             .build();
-            
+
             List<String> dsl = client.getDatasetList(10,0);
             assertTrue(dsl.size() > 0);
         } finally {
-            server.stop();    
-        }        
+            server.stop();
+        }
     }
-    
-    
+
+
 }
