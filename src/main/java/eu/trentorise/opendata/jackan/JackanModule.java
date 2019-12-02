@@ -56,7 +56,7 @@ public class JackanModule extends SimpleModule {
 
     public JackanModule() {
 
-        setNamingStrategy(PropertyNamingStrategy.CAMEL_CASE_TO_LOWER_CASE_WITH_UNDERSCORES);
+        setNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
 
         addSerializer(Timestamp.class, new StdSerializer<Timestamp>(Timestamp.class) {
             @Override
