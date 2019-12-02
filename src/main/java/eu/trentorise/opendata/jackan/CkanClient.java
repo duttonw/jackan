@@ -41,7 +41,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.sql.Timestamp;
@@ -176,6 +175,10 @@ public class CkanClient {
     private abstract static class CkanTagForPosting {
     }
 
+    @JsonSerialize(as = CkanDatastoreResults.class)
+    private abstract static class CkanDataStoreForSearch {
+    }
+
     /**
      * Configures the provided Jackson ObjectMapper exactly as the internal JSON
      * mapper used for reading operations. If you want to perform
@@ -209,19 +212,20 @@ public class CkanClient {
     public static void configureObjectMapperForPosting(ObjectMapper om, Class clazz) {
         configureObjectMapper(om);
         om.setSerializationInclusion(Include.NON_NULL);
-        om.addMixInAnnotations(CkanResource.class, CkanResourceForPosting.class);
-        om.addMixInAnnotations(CkanDataset.class, CkanDatasetForPosting.class);
-        om.addMixInAnnotations(CkanOrganization.class, CkanGroupOrgForPosting.class);
+        om.addMixIn(CkanResource.class, CkanResourceForPosting.class);
+        om.addMixIn(CkanDataset.class, CkanDatasetForPosting.class);
+        om.addMixIn(CkanOrganization.class, CkanGroupOrgForPosting.class);
         if (CkanDatasetBase.class.isAssignableFrom(clazz)) {
             // little fix for
             // https://github.com/opendatatrentino/jackan/issues/19
-            om.addMixInAnnotations(CkanGroup.class, GroupForDatasetPosting.class);
+            om.addMixIn(CkanGroup.class, GroupForDatasetPosting.class);
         } else {
-            om.addMixInAnnotations(CkanGroup.class, CkanGroupOrgForPosting.class);
+            om.addMixIn(CkanGroup.class, CkanGroupOrgForPosting.class);
         }
 
-        om.addMixInAnnotations(CkanUser.class, CkanUserForPosting.class);
-        om.addMixInAnnotations(CkanTag.class, CkanTagForPosting.class);
+        om.addMixIn(CkanUser.class, CkanUserForPosting.class);
+        om.addMixIn(CkanTag.class, CkanTagForPosting.class);
+        om.addMixIn(DatastoreSearchResponse.class, CkanResource.class);
     }
 
     /**
@@ -1374,18 +1378,6 @@ public class CkanClient {
     }
 
     /**
-     * @params s a string to encode in a format suitable for URLs.
-     */
-    private static String urlEncode(String s) {
-        try {
-            return URLEncoder.encode(s, "UTF-8")
-                .replaceAll("\\+", "%20");
-        } catch (UnsupportedEncodingException ex) {
-            throw new JackanException("Unsupported encoding", ex);
-        }
-    }
-
-    /**
      * Search datasets according to the provided query.
      *
      * @param query  The query object
@@ -1415,7 +1407,7 @@ public class CkanClient {
 
         if (fq.length() > 0) {
             params.append("&fq=")
-                .append(urlEncode(fq.insert(0, "(")
+                .append(CkanUtil.urlEncode(fq.insert(0, "(")
                     .append(")")
                     .toString()));
         }
@@ -1440,18 +1432,19 @@ public class CkanClient {
      * @param offset search begins from offset
      * @throws CkanException on error
      */
-    public synchronized DatastoreSearchResults<CkanDatastoreResults> datastoreSearch(CkanDatastoreQuery query, int limit, int offset) {
+    public synchronized CkanDatastoreResults datastoreSearch(CkanDatastoreQuery query, int limit, int offset) {
         checkNotNull(query, "Need a valid query!");
 
         StringBuilder params = new StringBuilder();
 
-        params.append("rows=")
+        params.append("limit=")
             .append(limit)
-            .append("&start=")
+            .append("&offset=")
             .append(offset);
 
         CkanUtil.appendParam("resource_id", query.getResourceId(), params);
         CkanUtil.appendParam("filters", query.getFilters(), params);
+        CkanUtil.appendParam("fields", query.getFields(), params);
         CkanUtil.appendParam("q", query.getText(), params);
         CkanUtil.appendParam("distinct", query.getDistinct(), params);
         CkanUtil.appendParam("plain", query.getPlain(), params);
@@ -1462,14 +1455,8 @@ public class CkanClient {
 
 
 
-        DatastoreSearchResults dsr;
-        dsr = getHttp(DatastoreSearchResults.class, "/api/3/action/datastore_search?" + params.toString());
-
-        for (CkanDataset ds : dsr.result.getResults()) {
-            for (CkanResource cr : ds.getResources()) {
-                cr.setPackageId(ds.getId());
-            }
-        }
+        DatastoreSearchResponse dsr;
+        dsr = getHttp(DatastoreSearchResponse.class, "/api/3/action/datastore_search?" + params.toString());
 
         return dsr.result;
     }
@@ -1905,9 +1892,9 @@ class DatasetSearchResponse extends CkanResponse {
     public SearchResults<CkanDataset> result;
 }
 
-class DatastoreSearchResults extends CkanResource {
+class DatastoreSearchResponse extends CkanResponse {
 
-    public SearchResults<CkanDatastoreResults> result;
+    public CkanDatastoreResults result;
 }
 
 class LicenseListResponse extends CkanResponse {

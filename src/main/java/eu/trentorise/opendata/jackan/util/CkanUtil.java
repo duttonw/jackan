@@ -1,7 +1,10 @@
 package eu.trentorise.opendata.jackan.util;
 
 import eu.trentorise.opendata.jackan.CkanDatastoreQuery;
+import eu.trentorise.opendata.jackan.exceptions.JackanException;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -73,12 +76,13 @@ public class CkanUtil {
 
         if (value != null && !value.isEmpty()){
             params.append("&")
-                .append(value.entrySet().stream().map( x ->
+                .append(key).append("=")
+                .append(urlEncode(value.entrySet().stream().map( x ->
                 //This makes "key1":"a"
-                "\"" + x + "\":\"" + x.getValue() + "\"")
+                "\"" + x.getKey() + "\":\"" + x.getValue() + "\"")
                         .collect(Collectors.toList()).stream()
-                    .collect(Collectors.joining(",", "{ ", " }"))
-            );
+                    .collect(Collectors.joining(",", "{", "}"))
+                ));
         }
     }
 
@@ -95,9 +99,10 @@ public class CkanUtil {
 
         if (value != null){
             params.append("&")
-                .append(value.stream()
+                .append(key).append("=")
+                .append(urlEncode(value.stream()
                     .collect(Collectors.joining(",", "", ""))
-                );
+                ));
         }
     }
 
@@ -128,5 +133,17 @@ public class CkanUtil {
             return "";
         }
 
+    }
+
+    /**
+     * @params s a string to encode in a format suitable for URLs.
+     */
+    public static String urlEncode(String s) {
+        try {
+            return URLEncoder.encode(s, "UTF-8")
+                .replaceAll("\\+", "%20");
+        } catch (UnsupportedEncodingException ex) {
+            throw new JackanException("Unsupported encoding", ex);
+        }
     }
 }

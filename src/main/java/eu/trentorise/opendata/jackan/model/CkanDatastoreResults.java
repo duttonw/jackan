@@ -17,26 +17,26 @@ package eu.trentorise.opendata.jackan.model;
 
 import javax.annotation.concurrent.Immutable;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
- * @author David Leoni
- * @param <T> the type of the results
+ * @author William Dutton
  */
 @Immutable
-public class CkanDatastoreResults<T> {
+public class CkanDatastoreResults {
 
     private boolean includeTotal;
     private String resourceId;
-    private List<T> fields;
+    private List<CkanDatastoreField> fields;
     private int limit;
-    private List<T> records;
+    private List<Map<String, Object>> records;
     private String recordsFormat;
     private int total;
     private CkanLinks links;
 
 
-    public CkanDatastoreResults(boolean includeTotal, String resourceId, List<T> fields, String recordsFormat,  List<T> records, int limit, CkanLinks links, int total) {
+    public CkanDatastoreResults(boolean includeTotal, String resourceId, List<CkanDatastoreField> fields, String recordsFormat,  List<Map<String, Object>> records, int limit, CkanLinks links, int total) {
         this.includeTotal = includeTotal;
         this.resourceId = resourceId;
         this.fields = fields;
@@ -58,7 +58,7 @@ public class CkanDatastoreResults<T> {
         return total;
     }
 
-    public List<T> getFields() {
+    public List<CkanDatastoreField> getFields() {
         return fields;
     }
 
@@ -70,7 +70,7 @@ public class CkanDatastoreResults<T> {
         return limit;
     }
 
-    public List<T> getRecords() {
+    public List<Map<String, Object>> getRecords() {
         return records;
     }
 
