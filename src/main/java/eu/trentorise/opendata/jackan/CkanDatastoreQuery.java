@@ -29,6 +29,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
  *
  * https://docs.ckan.org/en/2.8/maintaining/datastore.html
  *
+ * https://staging.data.qld.gov.au/api/3/action/datastore_search?resource_id=84fc0093-cc1c-4506-81f3-09b9d1cc1ce5&limit=2&records_format=lists
+ * https://www.data.qld.gov.au/api/action/datastore_search_sql?sql=SELECT%20%22Title%22%2C%22Latitude%22%2C%22Longitude%22%2C%22Closure%22%20from%20%22919a8e0f-f538-44df-bb3f-a6cccba0381f%22%20WHERE%20(upper(%22Title%22)%20LIKE%20upper(%27%25QGSC%25%27))%20UNION%20ALL%20SELECT%20%22Title%22%2C%22Latitude%22%2C%22Longitude%22%2C%22Closure%22%20from%20%2244d457a4-b1ad-40a4-af9f-670989ce36bb%22%20ORDER%20BY%20%22Title%22
+ * 
  * @author William Dutton
  */
 public final class CkanDatastoreQuery {
