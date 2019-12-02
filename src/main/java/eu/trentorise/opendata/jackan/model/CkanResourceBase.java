@@ -89,7 +89,7 @@ public class CkanResourceBase {
     private Map<String, Object> others;
 
     /**
-     * The dataset this resource belongs to. Latest ckan give it back, but older ones 
+     * The dataset this resource belongs to. Latest ckan give it back, but older ones
      * may return {@code null}. Required when creating resources.
      */
     @Nullable
@@ -98,9 +98,9 @@ public class CkanResourceBase {
     }
 
     /**
-     * The dataset this resource belongs to. Latest ckan give it back, but older ones 
+     * The dataset this resource belongs to. Latest ckan give it back, but older ones
      * may return {@code null}. Required when creating resources.
-     * 
+     *
      * @param packageId the dataset this resource belongs to.
      */
     public void setPackageId(@Nullable String packageId) {
@@ -400,9 +400,9 @@ public class CkanResourceBase {
 
     /**
      * The file to be added to the resource. See {@link #setUpload(File, boolean)} for further info.
-     * 
+     *
      * @since 0.4.3
-     */ 
+     */
     public File getUpload() {
         return upload;
     }
@@ -418,17 +418,17 @@ public class CkanResourceBase {
 
     /**
      * Sets the file to upload.
-     *    
+     *
      * @param upload the File to upload.
-     * @deprecated Put here only to have a bean-style setter, 
+     * @deprecated Put here only to have a bean-style setter,
      * if possible prefer calling {@link #setUpload(File, boolean)}
-     * 
+     *
      * @since 0.4.3
      */
     public void setUpload(@Nullable File upload){
         this.setUpload(upload, false);
     }
-    
+
     /**
      * A file to be added to the resource.
      *
@@ -440,7 +440,7 @@ public class CkanResourceBase {
      *
      * @throws JackanException
      *     if asked for automatic guessing of mime type and format but those could not be guessed.
-     *     
+     *
      * @since 0.4.3
      */
     public void setUpload(@Nullable File upload, boolean guessMimeTypeAndFormat) {
@@ -474,7 +474,7 @@ public class CkanResourceBase {
     /**
      * A array byte to be added to the resource.
      *
-     * @since 0.4.3
+     * @since 0.5.0
      */
     public void setUploadByte(byte[] uploadByte) {
         if (uploadByte == null) {

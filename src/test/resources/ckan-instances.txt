@@ -174,9 +174,9 @@ Portal de Datos Públicos
 http://datospublicos.gob.ar/data/
 publicdata.eu
 http://publicdata.eu/
-Open Data Queensland Government Australia
+Open Data, Queensland Government, Australia
 https://www.data.qld.gov.au
-Publications Queensland Government publications, Australia
+Publications, Queensland Government publications, Australia
 https://www.publications.qld.gov.au
 Ressourcerie Datalocale
 http://catalogue.datalocale.fr/

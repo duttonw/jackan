@@ -477,7 +477,7 @@ public class CkanClient {
             source = objectMapper.writeValueAsString(objectNode);
 
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new JackanException("Error while cleaning up extras ArrayNode. Source was: " + source, e);
         }
 
         return source;

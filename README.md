@@ -13,6 +13,9 @@ RELEASE DOCS ARE ON THE <a href="http://opendatatrentino.github.io/jackan/" targ
 
 Java client library for CKAN catalogs.
 
+CircleCI duttonw/jackan: [![CircleCI](https://circleci.com/gh/duttonw/jackan.svg?style=svg)](https://circleci.com/gh/duttonw/jackan)
+
+
 |**Usage**|**License**|**Roadmap**|**Contributing**|
 |-----------|---------|-----------|----------------|
 | See [docs](docs) |Business-friendly [Apache License v2.0](LICENSE.txt) | See [project milestones](../../milestones) | See [the wiki](../../wiki)|
@@ -57,6 +60,7 @@ Main devs:
 * David Leoni - DISI, University of Trento - david.leoni@unitn.it
 * Ivan Tankoyeu - DISI, University of Trento - tankoyeu@disi.unitn.it
 
+
 Contributors:
 
 * Benoit Orihuela http://twitter.com/bobeal
@@ -64,6 +68,7 @@ Contributors:
 * Raul Hidalgo Caballero https://github.com/deinok
 * David Moravek http://davidmoravek.cz/
 * Florent André https://github.com/florent-andre
+* William Dutton https://github.com/duttonw
 
 We also wish to thank our very first beta tester Giulio Pilotto https://about.me/giuliopilotto
 
