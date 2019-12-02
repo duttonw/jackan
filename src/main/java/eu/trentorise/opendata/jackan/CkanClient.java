@@ -31,6 +31,7 @@ import com.google.common.io.CharStreams;
 import eu.trentorise.opendata.commons.TodUtils;
 import eu.trentorise.opendata.jackan.exceptions.*;
 import eu.trentorise.opendata.jackan.model.*;
+import eu.trentorise.opendata.jackan.util.CkanUtil;
 import org.apache.http.client.fluent.Request;
 import org.apache.http.client.fluent.Response;
 import org.apache.http.entity.ContentType;
@@ -1281,35 +1282,6 @@ public class CkanClient {
     }
 
     /**
-     * @param fqPrefix either "" or " AND "
-     * @param list     list of names of ckan objects
-     */
-    private static String appendNamesList(String fqPrefix, String key, List<String> list, StringBuilder fq) {
-        checkNotNull(fqPrefix, "Need a valid prefix!");
-        checkNotNull(key, "Need a valid key!");
-        checkNotNull(list, "Need a valid list!");
-        checkNotNull(fq, "Need a valid string builder!");
-
-        if (list.size() > 0) {
-            fq.append(fqPrefix)
-                .append("(");
-            String prefix = "";
-            for (String n : list) {
-                fq.append(prefix)
-                    .append(key)
-                    .append(":");
-                fq.append('"' + n + '"');
-                prefix = " AND ";
-            }
-            fq.append(")");
-            return " AND ";
-        } else {
-            return "";
-        }
-
-    }
-
-    /**
      * Parses a {@link #CKAN_TIMESTAMP_PATTERN Ckan timestamp} into a Java Timestamp.
      * For resilience, it also accepts patterns without fractional part and with
      * only millisecs.
@@ -1431,19 +1403,15 @@ public class CkanClient {
             .append("&start=")
             .append(offset);
 
-        if (query.getText()
-            .length() > 0) {
-            params.append("&q=");
-            params.append(urlEncode(query.getText()));
-        }
+        CkanUtil.appendParam("q", query.getText(), params);
 
         StringBuilder fq = new StringBuilder();
         String fqPrefix = "";
 
-        fqPrefix = appendNamesList(fqPrefix, "groups", query.getGroupNames(), fq);
-        fqPrefix = appendNamesList(fqPrefix, "organization", query.getOrganizationNames(), fq);
-        fqPrefix = appendNamesList(fqPrefix, "tags", query.getTagNames(), fq);
-        fqPrefix = appendNamesList(fqPrefix, "license_id", query.getLicenseIds(), fq);
+        fqPrefix = CkanUtil.appendNamesList(fqPrefix, "groups", query.getGroupNames(), fq);
+        fqPrefix = CkanUtil.appendNamesList(fqPrefix, "organization", query.getOrganizationNames(), fq);
+        fqPrefix = CkanUtil.appendNamesList(fqPrefix, "tags", query.getTagNames(), fq);
+        CkanUtil.appendNamesList(fqPrefix, "license_id", query.getLicenseIds(), fq); //last
 
         if (fq.length() > 0) {
             params.append("&fq=")
@@ -1454,6 +1422,48 @@ public class CkanClient {
 
         DatasetSearchResponse dsr;
         dsr = getHttp(DatasetSearchResponse.class, "/api/3/action/package_search?" + params.toString());
+
+        for (CkanDataset ds : dsr.result.getResults()) {
+            for (CkanResource cr : ds.getResources()) {
+                cr.setPackageId(ds.getId());
+            }
+        }
+
+        return dsr.result;
+    }
+
+    /**
+     * Search datasets according to the provided query.
+     *
+     * @param query  The query object
+     * @param limit  maximum results to return
+     * @param offset search begins from offset
+     * @throws CkanException on error
+     */
+    public synchronized DatastoreSearchResults<CkanDatastoreResults> datastoreSearch(CkanDatastoreQuery query, int limit, int offset) {
+        checkNotNull(query, "Need a valid query!");
+
+        StringBuilder params = new StringBuilder();
+
+        params.append("rows=")
+            .append(limit)
+            .append("&start=")
+            .append(offset);
+
+        CkanUtil.appendParam("resource_id", query.getResourceId(), params);
+        CkanUtil.appendParam("filters", query.getFilters(), params);
+        CkanUtil.appendParam("q", query.getText(), params);
+        CkanUtil.appendParam("distinct", query.getDistinct(), params);
+        CkanUtil.appendParam("plain", query.getPlain(), params);
+        CkanUtil.appendParam("language", query.getLanguage(), params);
+        CkanUtil.appendParam("sort", query.getSort(), params);
+        CkanUtil.appendParam("include_total", query.getIncludeTotal(), params);
+        CkanUtil.appendParam("records_format", query.getRecordsFormat(), params);
+
+
+
+        DatastoreSearchResults dsr;
+        dsr = getHttp(DatastoreSearchResults.class, "/api/3/action/datastore_search?" + params.toString());
 
         for (CkanDataset ds : dsr.result.getResults()) {
             for (CkanResource cr : ds.getResources()) {
@@ -1893,6 +1903,11 @@ class VocabularyResponse extends CkanResponse {
 class DatasetSearchResponse extends CkanResponse {
 
     public SearchResults<CkanDataset> result;
+}
+
+class DatastoreSearchResults extends CkanResource {
+
+    public SearchResults<CkanDatastoreResults> result;
 }
 
 class LicenseListResponse extends CkanResponse {
