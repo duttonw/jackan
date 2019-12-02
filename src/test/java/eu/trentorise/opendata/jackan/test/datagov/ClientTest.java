@@ -39,7 +39,7 @@ public class ClientTest {
         }
         for (Map<String, Object> field : datastoreResults.getRecords()) {
             field.forEach((k, v) ->
-                System.out.println(k + ":" + v)
+                System.out.println(k + ":" + v.getClass())
             );
         }
     }

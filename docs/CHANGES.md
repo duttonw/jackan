@@ -8,7 +8,7 @@ http://opendatatrentino.github.io/jackan
 
 - CkanResources now stores upload in memory instead of writing to disk before sending
 - CkanClient now cleans up Incompatible Json for get requests inside the extras (convert ArrayNode)
-- swapped from having a parent to importin parent bom tod-super-pom 1.3.0
+- swapped from having a parent to importing parent bom tod-super-pom 1.3.0
 - guava updated to 28.1-jre
 - jackson updated to 2.10.1
 - httpcore updated from 4.4.1 to 4.4.12
@@ -17,6 +17,7 @@ http://opendatatrentino.github.io/jackan
 - ObjectMapper created when CkanClient is initialized to ensure thread safety
 - CkanClient sets http_proxy from environment if available (can be overridden)
 - Quality of life (circleCI now added)
+- Now allows datastore_search calls via CkanClient.datastoreSearch
 
 ### 0.4.3 todo 
 
