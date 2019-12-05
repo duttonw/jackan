@@ -85,7 +85,9 @@ public class JackanModule extends SimpleModule {
                         return CkanClient.parseTimestamp(str);
                     }
                     catch (IllegalArgumentException ex) {
-                        LOG.log(Level.SEVERE, "Couldn't parse timestamp " + str + ", returning null", ex);
+                        if (!"None".equals(str)) {
+                            LOG.log(Level.SEVERE, "Couldn't parse timestamp " + str + ", returning null", ex);
+                        }
                         return null;
                     }
                 }

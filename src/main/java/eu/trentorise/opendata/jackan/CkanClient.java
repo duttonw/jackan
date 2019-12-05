@@ -444,6 +444,9 @@ public class CkanClient {
             request.addHeader("Authorization", ckanToken);
         }
         if (proxy != null) {
+            if (proxy.endsWith("/")) {
+                proxy = proxy.substring(0, proxy.length() -1);
+            }
             request.viaProxy(proxy);
         }
         request.socketTimeout(this.timeout)
@@ -1395,7 +1398,7 @@ public class CkanClient {
             .append("&start=")
             .append(offset);
 
-        CkanUtil.appendParam("q", query.getText(), params);
+        CkanUtil.appendParam("q", CkanUtil.urlEncode(query.getText()), params);
 
         StringBuilder fq = new StringBuilder();
         String fqPrefix = "";
